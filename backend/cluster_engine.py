@@ -53,10 +53,10 @@ def _adaptive_factor(storage):
     """Scale thresholds by corpus size. Small=lenient, large=strict."""
     total = sum(len(c.get("files", {})) for k, c in storage.items() if k != "bridge_files")
     if total < 5:
-        return 0.75
+        return 0.96
     elif total <= 20:
         return 1.0
-    return 1.05
+    return 1.02
 
 
 def _get_thresholds(storage):
