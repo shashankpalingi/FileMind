@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
-EMBEDDING_MODEL = "text-embedding-004"
+EMBEDDING_MODEL = "models/embedding-001"
 
 def generate_embedding(text):
     if not text.strip():
