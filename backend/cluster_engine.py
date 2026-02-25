@@ -18,11 +18,27 @@ Algorithm: Online Agglomerative Clustering with Pairwise Coherence
 """
 
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 import os
 from storage import load_storage, save_storage
 from naming_engine import generate_cluster_label
 import time
+
+
+def _cosine_sim(a, b):
+    """Cosine similarity between two vectors."""
+    a, b = np.array(a).flatten(), np.array(b).flatten()
+    dot = np.dot(a, b)
+    norm = np.linalg.norm(a) * np.linalg.norm(b)
+    return float(dot / norm) if norm > 0 else 0.0
+
+
+def _cosine_sim_matrix(vectors):
+    """Pairwise cosine similarity matrix for a list of vectors."""
+    mat = np.array(vectors)
+    norms = np.linalg.norm(mat, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1, norms)
+    normalized = mat / norms
+    return np.dot(normalized, normalized.T)
 
 # ─── Base Thresholds (tuned for all-MiniLM-L6-v2) ─────────────────────
 BASE_PRIMARY_THRESHOLD = 0.35
@@ -105,7 +121,7 @@ def _compute_stability(cluster_data):
     if len(member_embs) <= 1:
         return 1.0
     emb_list = list(member_embs.values())
-    sim_matrix = cosine_similarity(emb_list)
+    sim_matrix = _cosine_sim_matrix(emb_list)
     n = len(emb_list)
     total = sum(sim_matrix[i][j] for i in range(n) for j in range(i + 1, n))
     count = n * (n - 1) // 2
@@ -197,7 +213,7 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
 
     for cid in cluster_ids:
         centroid = np.array(storage[cid]["centroid"])
-        sim = float(cosine_similarity([file_emb], [centroid])[0][0])
+        sim = _cosine_sim(file_emb, centroid)
         print(f"  → Cluster {cid} ({storage[cid].get('label', '?')}): sim={sim:.4f}")
 
         if sim > best_sim:
@@ -215,7 +231,7 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
         if not member_embs:
             should_join, coherence_val = True, best_sim
         else:
-            pairwise = [float(cosine_similarity([file_emb], [e])[0][0]) for e in member_embs.values()]
+            pairwise = [_cosine_sim(file_emb, e) for e in member_embs.values()]
             coherence_val = float(np.mean(pairwise))
             max_member_sim = float(max(pairwise))
             print(f"  → Coherence: avg={coherence_val:.4f}, min={min(pairwise):.4f}, max={max_member_sim:.4f}")
@@ -405,10 +421,10 @@ def _merge_similar_clusters(user_id):
                 if a not in storage or b not in storage:
                     continue
 
-                sim = float(cosine_similarity(
-                    [np.array(storage[a]["centroid"])],
-                    [np.array(storage[b]["centroid"])]
-                )[0][0])
+                sim = _cosine_sim(
+                    np.array(storage[a]["centroid"]),
+                    np.array(storage[b]["centroid"])
+                )
 
                 if sim < thresholds["merge"]:
                     continue

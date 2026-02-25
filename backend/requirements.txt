@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
-sentence-transformers
-scikit-learn
+google-generativeai
+numpy
 groq
 supabase
 python-dotenv

@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, WebSocket, UploadFile, File, Depends, HTTPException
+import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 import asyncio
@@ -13,8 +14,7 @@ from cluster_engine import get_engine_state, remove_file, recluster_all, add_fil
 from extractor import extract_text, chunk_text, extract_metadata
 
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 from auth import get_current_user
 from supabase_client import supabase, supabase_admin, STORAGE_BUCKET
@@ -23,7 +23,28 @@ from supabase_client import supabase, supabase_admin, STORAGE_BUCKET
 # MODEL SETUP
 # -----------------------------
 
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+# Configure Google Generative AI for embeddings
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+EMBEDDING_MODEL = "models/text-embedding-004"
+
+def embed_texts(texts):
+    """Embed one or more texts using Google Generative AI."""
+    if isinstance(texts, str):
+        texts = [texts]
+    result = genai.embed_content(model=EMBEDDING_MODEL, content=texts)
+    return [np.array(e) for e in result['embedding']]
+
+def embed_query(text):
+    """Embed a single query string. Returns a numpy array."""
+    result = genai.embed_content(model=EMBEDDING_MODEL, content=text)
+    return np.array(result['embedding'])
+
+def cosine_similarity_pairs(a, b):
+    """Compute cosine similarity between two vectors (numpy arrays)."""
+    a, b = np.array(a).flatten(), np.array(b).flatten()
+    dot = np.dot(a, b)
+    norm = np.linalg.norm(a) * np.linalg.norm(b)
+    return float(dot / norm) if norm > 0 else 0.0
 
 # Groq client for RAG chatbot
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -93,7 +114,7 @@ def process_file_content(file_content: bytes, filename: str, user_id: str):
             return
 
         print(f"PROCESS: Embedding {len(chunks)} chunks for {filename}...")
-        embeddings = embedding_model.encode(chunks)
+        embeddings = embed_texts(chunks)
         chunks_data = [{"text": t, "embedding": e.tolist()} for t, e in zip(chunks, embeddings)]
 
         metadata = extract_metadata(tmp_path)
@@ -355,7 +376,7 @@ async def update_file(filename: str, file: UploadFile = File(...), user_id: str 
 def search_files(request: SearchRequest, user_id: str = Depends(get_current_user)):
     try:
         storage, _, _ = get_engine_state(user_id)
-        query_embedding = embedding_model.encode(request.query)
+        query_embedding = embed_query(request.query)
         results = []
 
         for cluster_id, cluster_data in storage.items():
@@ -364,10 +385,7 @@ def search_files(request: SearchRequest, user_id: str = Depends(get_current_user
                 best_chunk = ""
 
                 for chunk in chunks:
-                    sim = cosine_similarity(
-                        [query_embedding],
-                        [chunk["embedding"]]
-                    )[0][0]
+                    sim = cosine_similarity_pairs(query_embedding, chunk["embedding"])
                     if sim > max_sim:
                         max_sim = sim
                         best_chunk = chunk["text"]
@@ -399,10 +417,7 @@ def rag_answer(request: SearchRequest, user_id: str = Depends(get_current_user))
         for cluster_id, cluster_data in storage.items():
             for file_name, chunks in cluster_data["files"].items():
                 for chunk in chunks:
-                    similarity = cosine_similarity(
-                        [query_embedding],
-                        [chunk["embedding"]]
-                    )[0][0]
+                    similarity = cosine_similarity_pairs(query_embedding, chunk["embedding"])
                     all_chunks.append({
                         "file": file_name,
                         "text": chunk["text"],
