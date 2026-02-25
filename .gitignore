@@ -4,6 +4,10 @@ __pycache__/
 .env
 .DS_Store
 
+# Backend runtime/generated data
+backend/embeddings*.json
+backend/embeddings*.json.bak
+backend/root_files/
 
 # dependencies
 node_modules/
