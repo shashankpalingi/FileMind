@@ -25,7 +25,7 @@ from supabase_client import supabase, supabase_admin, STORAGE_BUCKET
 
 # Configure Google GenAI for embeddings
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-EMBEDDING_MODEL = "models/embedding-001"
+EMBEDDING_MODEL = "gemini-embedding-001"
 
 def embed_texts(texts):
     """Embed one or more texts using Google GenAI."""
