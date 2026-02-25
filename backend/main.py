@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, WebSocket, UploadFile, File, Depends, HTTPException
-import google.generativeai as genai
+from google import genai
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 import asyncio
@@ -23,21 +23,21 @@ from supabase_client import supabase, supabase_admin, STORAGE_BUCKET
 # MODEL SETUP
 # -----------------------------
 
-# Configure Google Generative AI for embeddings
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-EMBEDDING_MODEL = "models/embedding-001"
+# Configure Google GenAI for embeddings
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+EMBEDDING_MODEL = "text-embedding-004"
 
 def embed_texts(texts):
-    """Embed one or more texts using Google Generative AI."""
+    """Embed one or more texts using Google GenAI."""
     if isinstance(texts, str):
         texts = [texts]
-    result = genai.embed_content(model=EMBEDDING_MODEL, content=texts)
-    return [np.array(e) for e in result['embedding']]
+    result = client.models.embed_content(model=EMBEDDING_MODEL, contents=texts)
+    return [np.array(e.values) for e in result.embeddings]
 
 def embed_query(text):
     """Embed a single query string. Returns a numpy array."""
-    result = genai.embed_content(model=EMBEDDING_MODEL, content=text)
-    return np.array(result['embedding'])
+    result = client.models.embed_content(model=EMBEDDING_MODEL, contents=text)
+    return np.array(result.embeddings[0].values)
 
 def cosine_similarity_pairs(a, b):
     """Compute cosine similarity between two vectors (numpy arrays)."""

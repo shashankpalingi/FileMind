@@ -1,14 +1,14 @@
 import os
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
-EMBEDDING_MODEL = "models/embedding-001"
+EMBEDDING_MODEL = "text-embedding-004"
 
 def generate_embedding(text):
     if not text.strip():
         return None
-    result = genai.embed_content(model=EMBEDDING_MODEL, content=text)
-    return result['embedding']
+    result = client.models.embed_content(model=EMBEDDING_MODEL, contents=text)
+    return result.embeddings[0].values
