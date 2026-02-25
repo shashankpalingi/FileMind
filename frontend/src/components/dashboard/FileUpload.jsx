@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, CheckCircle, XCircle } from 'lucide-react';
+import api from '../../api';
 import './FileUpload.css';
 
 const FileUpload = ({ onUploadSuccess }) => {
@@ -56,12 +57,11 @@ const FileUpload = ({ onUploadSuccess }) => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/upload', {
-                method: 'POST',
-                body: formData,
+            const { data } = await api.post('/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
 
-            if (response.ok) {
+            if (!data.error) {
                 setUploadProgress(100);
                 setUploadStatus({
                     type: 'success',
@@ -80,7 +80,7 @@ const FileUpload = ({ onUploadSuccess }) => {
                     setUploadProgress(0);
                 }, 3000);
             } else {
-                throw new Error('Upload failed');
+                throw new Error(data.error);
             }
         } catch (error) {
             setUploadStatus({

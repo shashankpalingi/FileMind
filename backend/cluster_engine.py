@@ -1,275 +1,445 @@
+"""
+SaaS-grade semantic clustering engine for FileMind.
+
+Architecture:
+- Files live in Supabase Storage — NO local disk dependency
+- Embeddings + clusters stored in per-user JSON
+- Naming uses stored chunk text (no disk reads)
+- Clusters are virtual groups (no physical folders)
+- All operations are per-user scoped
+
+Algorithm: Online Agglomerative Clustering with Pairwise Coherence
+- Best-match against ALL cluster centroids (not first-match)
+- Pairwise coherence check before joining
+- Adaptive thresholds based on corpus size
+- Bridge file detection for ambiguous placements
+- Per-file confidence scores + placement explainability
+- Deterministic ordering for UX consistency
+"""
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import os
-import shutil
 from storage import load_storage, save_storage
 from naming_engine import generate_cluster_label
 import time
 
-SIMILARITY_THRESHOLD = 0.45  # Increased to be more selective
+# ─── Base Thresholds (tuned for all-MiniLM-L6-v2) ─────────────────────
+BASE_PRIMARY_THRESHOLD = 0.35
+BASE_COHERENCE_THRESHOLD = 0.25
+BASE_MERGE_THRESHOLD = 0.38
+BRIDGE_PROXIMITY_RATIO = 0.85
 
-file_embeddings = {}
-clusters = {}
 
-# 3️⃣ Load storage FIRST
-storage = load_storage()
-# Rebuild clusters and file_embeddings from storage on startup
-# file_embeddings now maps file_path -> mean_embedding (for clustering logic)
-if storage:
-    for cluster_id, cluster_data in storage.items():
-        cid = int(cluster_id)
-        clusters[cid] = list(cluster_data["files"].keys())
-        for f, chunks in cluster_data["files"].items():
-            if chunks and isinstance(chunks, list):
-                # Use mean of chunk embeddings for file-level similarity check during organization
-                embs = [np.array(c["embedding"]) for c in chunks if "embedding" in c]
-                if embs:
-                    file_embeddings[f] = np.mean(embs, axis=0)
+# ─── Adaptive Thresholds ──────────────────────────────────────────────
 
-def add_file(file_path, chunks_data, metadata, skip_naming=False):
-    """
-    chunks_data: List of {"text": str, "embedding": list}
-    metadata: dict of file metadata
-    """
-    global file_embeddings, clusters, storage
+def _adaptive_factor(storage):
+    """Scale thresholds by corpus size. Small=lenient, large=strict."""
+    total = sum(len(c.get("files", {})) for k, c in storage.items() if k != "bridge_files")
+    if total < 5:
+        return 0.75
+    elif total <= 20:
+        return 1.0
+    return 1.05
 
-    file_path = os.path.abspath(file_path)
-    
-    # Calculate file-level embedding (mean of chunks) for clustering
-    embs = [np.array(c["embedding"]) for c in chunks_data]
-    if not embs:
-        return
-    file_mean_emb = np.mean(embs, axis=0)
-    file_embeddings[file_path] = file_mean_emb
 
-    # Initialize metadata if not present
-    for cid in storage:
-        if "metadata" not in storage[cid]:
-            storage[cid]["metadata"] = {}
-
-    # FIRST FILE → CREATE FIRST CLUSTER
-    if not clusters:
-        label = generate_cluster_label([file_path]) if not skip_naming else "Refining_Label"
-        clusters[0] = [file_path]
-
-        storage["0"] = {
-            "label": label,
-            "centroid": file_mean_emb.tolist(),
-            "files": {
-                file_path: chunks_data
-            },
-            "metadata": {
-                file_path: metadata
-            }
-        }
-
-        save_storage(storage)
-        return
-
-    # CHECK EXISTING CLUSTERS
-    best_similarity = -1
-    best_cluster_id = -1
-
-    for cluster_id, files in clusters.items():
-        # Get cluster centroid
-        cluster_centroid = np.array(storage[str(cluster_id)]["centroid"])
-        
-        similarity = cosine_similarity(
-            [file_mean_emb],
-            [cluster_centroid]
-        )[0][0]
-
-        print(f"Similarity with cluster {cluster_id} ({storage[str(cluster_id)]['label']}) = {similarity}")
-
-        if similarity > best_similarity:
-            best_similarity = similarity
-            best_cluster_id = cluster_id
-
-    if best_similarity >= SIMILARITY_THRESHOLD:
-        cluster_id = best_cluster_id
-        clusters[cluster_id].append(file_path)
-
-        # 🔥 ADD FILE TO STORAGE
-        storage[str(cluster_id)]["files"][file_path] = chunks_data
-        storage[str(cluster_id)]["metadata"][file_path] = metadata
-
-        # 🔥 UPDATE CENTROID (Average of all file centroids in cluster)
-        all_file_embs = []
-        for f in storage[str(cluster_id)]["files"]:
-            f_chunks = storage[str(cluster_id)]["files"][f]
-            f_embs = [np.array(c["embedding"]) for c in f_chunks]
-            if f_embs:
-                all_file_embs.append(np.mean(f_embs, axis=0))
-        
-        if all_file_embs:
-            centroid = np.mean(all_file_embs, axis=0)
-            storage[str(cluster_id)]["centroid"] = centroid.tolist()
-
-        # Optional: Refresh label if cluster grows
-        if len(storage[str(cluster_id)]["files"]) % 5 == 0:
-            storage[str(cluster_id)]["label"] = generate_cluster_label(list(storage[str(cluster_id)]["files"].keys()))
-
-        save_storage(storage)
-        return
-
-    # NO MATCH → CREATE NEW CLUSTER
-    new_cluster_id = len(storage)
-    label = generate_cluster_label([file_path]) if not skip_naming else "Refining_Label"
-    clusters[new_cluster_id] = [file_path]
-
-    storage[str(new_cluster_id)] = {
-        "label": label,
-        "centroid": file_mean_emb.tolist(),
-        "files": {
-            file_path: chunks_data
-        },
-        "metadata": {
-            file_path: metadata
-        }
+def _get_thresholds(storage):
+    f = _adaptive_factor(storage)
+    return {
+        "primary": BASE_PRIMARY_THRESHOLD * f,
+        "coherence": BASE_COHERENCE_THRESHOLD * f,
+        "merge": BASE_MERGE_THRESHOLD * f,
     }
 
-    save_storage(storage)
+
+# ─── Helpers ───────────────────────────────────────────────────────────
+
+def _cluster_keys(storage):
+    """Get only real cluster keys, excluding bridge_files."""
+    return [k for k in storage.keys() if k != "bridge_files"]
 
 
-def _heal_paths(root_path):
-    """Reconcile storage paths with physical file locations if they go missing."""
-    global storage
-    changed = False
+def _next_cluster_id(storage):
+    keys = _cluster_keys(storage)
+    if not keys:
+        return 0
+    return max(int(k) for k in keys) + 1
+
+
+def _file_embedding(chunks_data):
+    embs = [np.array(c["embedding"]) for c in chunks_data if "embedding" in c]
+    if not embs:
+        return None
+    return np.mean(embs, axis=0)
+
+
+def _cluster_member_embeddings(cluster_data):
+    embeddings = {}
+    for fpath, chunks in cluster_data["files"].items():
+        emb = _file_embedding(chunks)
+        if emb is not None:
+            embeddings[fpath] = emb
+    return embeddings
+
+
+def _update_centroid(cluster_data):
+    member_embs = _cluster_member_embeddings(cluster_data)
+    if member_embs:
+        cluster_data["centroid"] = np.mean(list(member_embs.values()), axis=0).tolist()
+    return cluster_data
+
+
+def _prune_empty_clusters(storage):
+    """Remove clusters with zero files. Never touches bridge_files."""
+    empty = [cid for cid in _cluster_keys(storage)
+             if len(storage[cid].get("files", {})) == 0]
+    for cid in empty:
+        print(f"CLUSTER: Pruning empty cluster {cid} (was: {storage[cid].get('label', '?')})")
+        del storage[cid]
+    return storage
+
+
+def _compute_stability(cluster_data):
+    """Cluster cohesion score (0.0–1.0) from average pairwise similarity."""
+    member_embs = _cluster_member_embeddings(cluster_data)
+    if len(member_embs) <= 1:
+        return 1.0
+    emb_list = list(member_embs.values())
+    sim_matrix = cosine_similarity(emb_list)
+    n = len(emb_list)
+    total = sum(sim_matrix[i][j] for i in range(n) for j in range(i + 1, n))
+    count = n * (n - 1) // 2
+    return total / count if count > 0 else 1.0
+
+
+def _get_file_texts(cluster_data):
+    """Extract text snippets from stored chunks for naming (no disk needed)."""
+    file_texts = {}
+    for fpath, chunks in cluster_data["files"].items():
+        texts = [c.get("text", "") for c in chunks[:3]]
+        file_texts[os.path.basename(fpath)] = " ".join(texts)[:500]
+    return file_texts
+
+
+# ─── Core API ──────────────────────────────────────────────────────────
+
+def get_engine_state(user_id):
+    """Rebuilds clusters and file_embeddings from storage. Excludes bridge_files."""
+    raw = load_storage(user_id)
+    # Return only real clusters — never expose bridge_files to callers
+    storage = {k: v for k, v in raw.items() if k != "bridge_files"}
+    file_embeddings = {}
+    clusters = {}
+
+    for cid, cluster_data in storage.items():
+        clusters[int(cid)] = list(cluster_data["files"].keys())
+        file_embeddings.update(_cluster_member_embeddings(cluster_data))
+
+    return storage, file_embeddings, clusters
+
+
+def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
+    """
+    Add a file to the best-matching cluster, or create a new one.
     
-    # Map filenames to their actual locations on disk
-    physical_map = {}
-    for root, _, files in os.walk(root_path):
-        for f in files:
-            if not f.startswith("."):
-                physical_map[f] = os.path.join(root, f)
-
-    for cluster_id, cluster_data in storage.items():
-        updates = {}
-        for old_path in list(cluster_data["files"].keys()):
-            if not os.path.exists(old_path):
-                filename = os.path.basename(old_path)
-                if filename in physical_map:
-                    new_path = physical_map[filename]
-                    print(f"SEFS: Healing path for {filename}: {old_path} -> {new_path}")
-                    updates[old_path] = new_path
-                    changed = True
-        
-        for old, new in updates.items():
-            emb = cluster_data["files"].pop(old)
-            cluster_data["files"][new] = emb
-            
-    if changed:
-        save_storage(storage)
-    return changed
-
-def sync_folders(root_path):
+    Key SaaS behaviors:
+    - file_name is just the filename (not a disk path)
+    - Only names cluster on CREATION (not every file add)
+    - Stores confidence scores + placement reason
+    - Detects bridge files
     """
-    Create semantic folders and move files accordingly.
-    Storage is the source of truth for labels.
-    """
-    # 0. Heal paths first so we know where files really are
-    _heal_paths(root_path)
+    storage = load_storage(user_id)
+    thresholds = _get_thresholds(storage)
 
-    for cluster_id, cluster_data in storage.items():
-        # 1. Detect Manual Rename: If files moved to a different folder manually
-        # Find actual current folder by looking at first file
-        existing_files = [f for f in cluster_data["files"].keys() if os.path.exists(f)]
-        if existing_files:
-            actual_parent = os.path.basename(os.path.dirname(existing_files[0]))
-            stored_label = cluster_data.get("label", "")
-            
-            # If disk folder != stored label AND it's not a generic name, assume manual override
-            if (actual_parent != stored_label and 
-                actual_parent != "root_files" and
-                not actual_parent.startswith("Refining_Label") and 
-                not actual_parent.startswith("cluster_")):
-                print(f"SEFS: Detected manual rename for cluster {cluster_id}: {stored_label} -> {actual_parent}")
-                cluster_data["label"] = actual_parent
-                save_storage(storage)
-                continue # Skip refinement if manually renamed
+    file_emb = _file_embedding(chunks_data)
+    if file_emb is None:
+        return
 
-        # 2. BACKFILL OR REFRESH FALLBACK LABELS
-        current_label = cluster_data.get("label", "")
-        is_fallback = (
-            not current_label or 
-            current_label in ("New_Cluster", "Uncategorized", "Miscellaneous") or 
-            current_label.startswith("Refining_Label") or 
-            current_label.startswith("cluster_")
-        )
-        
-        if is_fallback:
-            print(f"SEFS: Refining semantic label for cluster {cluster_id}...")
-            files = list(cluster_data["files"].keys())
-            
-            # Simple retry with backoff for 429
-            new_label = None
-            for attempt in range(3):
-                new_label = generate_cluster_label(files)
-                if "429" not in str(new_label) and new_label != "Refining_Label":
+    # Remove from any existing cluster (handles re-uploads)
+    for cid in _cluster_keys(storage):
+        cdata = storage[cid]
+        if file_name in cdata["files"]:
+            cdata["files"].pop(file_name)
+            cdata.get("metadata", {}).pop(file_name, None)
+            cdata.get("file_scores", {}).pop(file_name, None)
+            _update_centroid(cdata)
+            break
+
+    # Clean bridge files
+    if "bridge_files" in storage:
+        storage["bridge_files"].pop(file_name, None)
+
+    storage = _prune_empty_clusters(storage)
+
+    # ── FIRST FILE ──
+    cluster_ids = _cluster_keys(storage)
+    if not cluster_ids:
+        file_texts = {file_name: " ".join(c.get("text", "") for c in chunks_data[:3])[:500]}
+        label = generate_cluster_label(file_texts) if not skip_naming else "Refining_Label"
+        storage["0"] = {
+            "label": label,
+            "centroid": file_emb.tolist(),
+            "files": {file_name: chunks_data},
+            "metadata": {file_name: metadata},
+            "file_scores": {file_name: {
+                "centroid_similarity": 1.0, "coherence_score": 1.0,
+                "confidence": 1.0, "placement_reason": "First file — created initial cluster"
+            }},
+            "stability_score": 1.0, "internal_cohesion": 1.0,
+        }
+        save_storage(storage, user_id)
+        print(f"CLUSTER: Created cluster 0 for {file_name}")
+        return
+
+    # ── FIND BEST & SECOND-BEST CLUSTER ──
+    best_sim, best_cid = -1, None
+    second_sim, second_cid = -1, None
+
+    for cid in cluster_ids:
+        centroid = np.array(storage[cid]["centroid"])
+        sim = float(cosine_similarity([file_emb], [centroid])[0][0])
+        print(f"  → Cluster {cid} ({storage[cid].get('label', '?')}): sim={sim:.4f}")
+
+        if sim > best_sim:
+            second_sim, second_cid = best_sim, best_cid
+            best_sim, best_cid = sim, cid
+        elif sim > second_sim:
+            second_sim, second_cid = sim, cid
+
+    # ── JOIN OR CREATE ──
+    should_join = False
+    coherence_val = 0.0
+
+    if best_sim >= thresholds["primary"] and best_cid is not None:
+        member_embs = _cluster_member_embeddings(storage[best_cid])
+        if not member_embs:
+            should_join, coherence_val = True, best_sim
+        else:
+            pairwise = [float(cosine_similarity([file_emb], [e])[0][0]) for e in member_embs.values()]
+            coherence_val = float(np.mean(pairwise))
+            max_member_sim = float(max(pairwise))
+            print(f"  → Coherence: avg={coherence_val:.4f}, min={min(pairwise):.4f}, max={max_member_sim:.4f}")
+            # Join if average coherence passes, OR if very similar to at least one member
+            if coherence_val >= thresholds["coherence"] or max_member_sim >= thresholds["primary"] + 0.10:
+                should_join = True
+
+    if should_join:
+        cid = best_cid
+        confidence = round(best_sim * 0.6 + coherence_val * 0.4, 4)
+        reason = f"Matched '{storage[cid].get('label', cid)}' — sim {best_sim:.2f}, coherence {coherence_val:.2f}"
+
+        storage[cid]["files"][file_name] = chunks_data
+        storage[cid].setdefault("metadata", {})[file_name] = metadata
+        storage[cid].setdefault("file_scores", {})[file_name] = {
+            "centroid_similarity": round(best_sim, 4),
+            "coherence_score": round(coherence_val, 4),
+            "confidence": confidence,
+            "placement_reason": reason,
+        }
+        _update_centroid(storage[cid])
+        storage[cid]["stability_score"] = round(_compute_stability(storage[cid]), 4)
+        storage[cid]["internal_cohesion"] = storage[cid]["stability_score"]
+
+        # NO re-naming here — only name on creation or recluster
+        print(f"CLUSTER: {file_name} → cluster {cid} ({storage[cid].get('label', '?')}) [conf={confidence:.2f}]")
+    else:
+        new_id = str(_next_cluster_id(storage))
+        if skip_naming:
+            label = "Refining_Label"
+        else:
+            file_texts = {file_name: " ".join(c.get("text", "") for c in chunks_data[:3])[:500]}
+            label = generate_cluster_label(file_texts)
+
+        reason = f"No cluster above threshold ({thresholds['primary']:.2f}) — best was {best_sim:.2f}" if best_cid else "New content type"
+        storage[new_id] = {
+            "label": label,
+            "centroid": file_emb.tolist(),
+            "files": {file_name: chunks_data},
+            "metadata": {file_name: metadata},
+            "file_scores": {file_name: {
+                "centroid_similarity": 1.0, "coherence_score": 1.0,
+                "confidence": 1.0, "placement_reason": reason,
+            }},
+            "stability_score": 1.0, "internal_cohesion": 1.0,
+        }
+        cid = new_id
+        print(f"CLUSTER: New cluster {new_id} ({label}) for {file_name}")
+
+    # ── BRIDGE FILE DETECTION ──
+    if (best_cid and second_cid
+            and second_sim >= thresholds["primary"] * BRIDGE_PROXIMITY_RATIO):
+        storage.setdefault("bridge_files", {})[file_name] = {
+            "primary_cluster": best_cid,
+            "primary_label": storage.get(best_cid, {}).get("label", "?"),
+            "primary_sim": round(best_sim, 4),
+            "secondary_cluster": second_cid,
+            "secondary_label": storage.get(second_cid, {}).get("label", "?"),
+            "secondary_sim": round(second_sim, 4),
+        }
+        print(f"CLUSTER: Bridge file: {file_name} spans '{storage.get(best_cid, {}).get('label')}' ↔ '{storage.get(second_cid, {}).get('label')}'")
+
+    save_storage(storage, user_id)
+
+    # ── AUTO-MERGE after every add ── keeps clusters consolidated
+    _merge_similar_clusters(user_id)
+
+
+def remove_file(user_id, file_identifier):
+    """Remove a file by filename from its cluster."""
+    storage = load_storage(user_id)
+
+    for cid in _cluster_keys(storage):
+        cdata = storage[cid]
+        # Match by exact key or basename
+        match = None
+        if file_identifier in cdata["files"]:
+            match = file_identifier
+        else:
+            for fpath in cdata["files"]:
+                if os.path.basename(fpath) == file_identifier:
+                    match = fpath
                     break
-                
-                wait_time = (attempt + 1) * 20  # increased backoff
-                print(f"SEFS: Rate limited, waiting {wait_time}s to retry cluster {cluster_id}...")
-                time.sleep(wait_time)
 
-            # Mandatory small delay between DIFFERENT clusters to avoid hitting burst limits
-            time.sleep(2)
+        if match:
+            cdata["files"].pop(match)
+            cdata.get("metadata", {}).pop(match, None)
+            cdata.get("file_scores", {}).pop(match, None)
+            if cdata["files"]:
+                _update_centroid(cdata)
+                cdata["stability_score"] = round(_compute_stability(cdata), 4)
+            print(f"CLUSTER: Removed {match} from cluster {cid}")
+            break
 
-            if new_label and new_label != current_label and not new_label.startswith("Refining_Label"):
-                # Rename folder if it already exists
-                old_folder = os.path.join(root_path, current_label) if current_label else None
-                cluster_data["label"] = new_label
-                
-                if old_folder and os.path.exists(old_folder):
-                    new_folder = os.path.join(root_path, new_label)
-                    if not os.path.exists(new_folder):
-                        print(f"SEFS: Renaming folder {current_label} -> {new_label}")
-                        os.rename(old_folder, new_folder)
+    if "bridge_files" in storage:
+        storage["bridge_files"].pop(file_identifier, None)
 
-        label = cluster_data.get("label", f"cluster_{cluster_id}")
-        
-        # Ensure unique folder name even if labels collide
-        cluster_folder = os.path.join(root_path, label)
-        
-        # If this folder is already used by a DIFFERENT cluster, append ID
-        used_folders = {c_data.get("label"): c_id for c_id, c_data in storage.items() if c_id != cluster_id}
-        if label in used_folders:
-             label = f"{label}_{cluster_id}"
-             cluster_folder = os.path.join(root_path, label)
+    storage = _prune_empty_clusters(storage)
+    save_storage(storage, user_id)
+    return storage
 
-        os.makedirs(cluster_folder, exist_ok=True)
 
-        updates = {}
-        for file_path, embedding_list in cluster_data["files"].items():
-            if not os.path.exists(file_path):
-                continue
-                
-            filename = os.path.basename(file_path)
-            destination = os.path.join(cluster_folder, filename)
+def recluster_all(user_id):
+    """
+    Full re-clustering from stored embeddings. No disk access needed.
+    Deterministic sort by filename for consistent results.
+    """
+    storage = load_storage(user_id)
+    cluster_store = {k: v for k, v in storage.items() if k != "bridge_files"}
 
-            # Move if not already in the correct folder
-            if os.path.abspath(file_path) != os.path.abspath(destination):
-                print(f"SEFS: Organizing {filename} -> {label}")
-                try:
-                    shutil.move(file_path, destination)
-                    updates[file_path] = destination
-                except Exception as e:
-                    print(f"Move Error: {e}")
+    if not cluster_store:
+        print("RECLUSTER: No data")
+        return
 
-        # Update storage with new paths
-        for old_path, new_path in updates.items():
-            emb = cluster_data["files"].pop(old_path)
-            cluster_data["files"][new_path] = emb
-    
-    save_storage(storage)
+    # Collect all file data from storage
+    all_files = {}
+    for cid, cdata in cluster_store.items():
+        for fname, chunks in cdata["files"].items():
+            emb = _file_embedding(chunks)
+            meta = cdata.get("metadata", {}).get(fname, {})
+            if emb is not None:
+                all_files[fname] = {"chunks": chunks, "metadata": meta, "embedding": emb}
 
-    # 3. Prune empty folders to keep root clean
-    for item in os.listdir(root_path):
-        item_path = os.path.join(root_path, item)
-        if os.path.isdir(item_path):
-            if not os.listdir(item_path):
-                print(f"SEFS: Pruning empty folder: {item}")
-                try:
-                    os.rmdir(item_path)
-                except Exception:
-                    pass
+    if not all_files:
+        print("RECLUSTER: No valid embeddings")
+        return
+
+    print(f"RECLUSTER: Re-clustering {len(all_files)} files for user {user_id}")
+
+    # Clear storage completely
+    storage.clear()
+    save_storage(storage, user_id)
+
+    # Deterministic sort by filename
+    for i, fname in enumerate(sorted(all_files.keys(), key=str.lower)):
+        fdata = all_files[fname]
+        print(f"RECLUSTER: [{i+1}/{len(all_files)}] {fname}")
+        add_file(user_id, fname, fdata["chunks"], fdata["metadata"], skip_naming=True)
+
+    # Merge similar clusters
+    _merge_similar_clusters(user_id)
+
+    # Single naming pass using stored text (no disk reads)
+    storage = load_storage(user_id)
+    cids = _cluster_keys(storage)
+    print(f"RECLUSTER: Naming {len(cids)} clusters...")
+    for cid in cids:
+        cdata = storage[cid]
+        if cdata["files"]:
+            file_texts = _get_file_texts(cdata)
+            label = generate_cluster_label(file_texts)
+            if label and not label.startswith("Refining"):
+                cdata["label"] = label
+                print(f"RECLUSTER: Cluster {cid} -> {label}")
+            else:
+                cdata["label"] = f"Cluster_{cid}"
+            time.sleep(3)
+
+    # Final stability
+    for cid in _cluster_keys(storage):
+        storage[cid]["stability_score"] = round(_compute_stability(storage[cid]), 4)
+        storage[cid]["internal_cohesion"] = storage[cid]["stability_score"]
+
+    save_storage(storage, user_id)
+    final_cids = _cluster_keys(load_storage(user_id))
+    print(f"RECLUSTER: Complete. {len(final_cids)} clusters")
+
+
+def _merge_similar_clusters(user_id):
+    """Merge clusters above threshold. Rollback if coherence drops."""
+    storage = load_storage(user_id)
+    if len(_cluster_keys(storage)) < 2:
+        return
+
+    thresholds = _get_thresholds(storage)
+    merged = True
+
+    while merged:
+        merged = False
+        cids = _cluster_keys(storage)
+
+        for i in range(len(cids)):
+            if merged:
+                break
+            for j in range(i + 1, len(cids)):
+                a, b = cids[i], cids[j]
+                if a not in storage or b not in storage:
+                    continue
+
+                sim = float(cosine_similarity(
+                    [np.array(storage[a]["centroid"])],
+                    [np.array(storage[b]["centroid"])]
+                )[0][0])
+
+                if sim < thresholds["merge"]:
+                    continue
+
+                # Snapshot for rollback
+                snap = {k: dict(v) if isinstance(v, dict) else v
+                        for k, v in storage[a].items()}
+
+                print(f"CLUSTER: Merging {b} ({storage[b].get('label')}) into {a} ({storage[a].get('label')}), sim={sim:.4f}")
+
+                storage[a]["files"].update(storage[b]["files"])
+                storage[a].setdefault("metadata", {}).update(storage[b].get("metadata", {}))
+                storage[a].setdefault("file_scores", {}).update(storage[b].get("file_scores", {}))
+                _update_centroid(storage[a])
+
+                post_stability = _compute_stability(storage[a])
+                if post_stability < thresholds["coherence"]:
+                    print(f"CLUSTER: Merge rollback — stability {post_stability:.4f} < {thresholds['coherence']:.4f}")
+                    storage[a] = snap
+                    continue
+
+                storage[a]["stability_score"] = round(post_stability, 4)
+                storage[a]["internal_cohesion"] = round(post_stability, 4)
+
+                file_texts = _get_file_texts(storage[a])
+                label = generate_cluster_label(file_texts)
+                if label and not label.startswith("Refining"):
+                    storage[a]["label"] = label
+
+                del storage[b]
+                merged = True
+                break
+
+    save_storage(storage, user_id)

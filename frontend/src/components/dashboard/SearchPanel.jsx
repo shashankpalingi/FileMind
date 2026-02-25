@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Search, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, AlertCircle, X } from 'lucide-react';
+import api from '../../api';
 import './SearchPanel.css';
 
 const SearchPanel = () => {
@@ -18,21 +19,9 @@ const SearchPanel = () => {
         setError(null);
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ query: query.trim() }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setResults(data.results || []);
-                setShowResults(true);
-            } else {
-                throw new Error('Search failed');
-            }
+            const { data } = await api.post('/search', { query: query.trim() });
+            setResults(data.results || []);
+            setShowResults(true);
         } catch (err) {
             setError('Failed to search. Please try again.');
             setResults([]);
@@ -47,17 +36,32 @@ const SearchPanel = () => {
         return filePath.split('/').pop();
     };
 
-    const handleBlur = (e) => {
-        // Delay hiding so clicks on results can register
-        setTimeout(() => {
-            if (!e.currentTarget?.contains(document.activeElement)) {
+    const panelRef = useRef(null);
+
+    // Close on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (panelRef.current && !panelRef.current.contains(e.target)) {
                 setShowResults(false);
             }
-        }, 200);
-    };
+        };
+        if (showResults) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showResults]);
+
+    // Close on Escape key
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') setShowResults(false);
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, []);
 
     return (
-        <div className="search-panel-container" onBlur={handleBlur}>
+        <div className="search-panel-container" ref={panelRef}>
             <form onSubmit={handleSearch} className="search-form">
                 <div className="search-input-wrapper">
                     <Search size={15} className="search-icon-left" />
@@ -89,45 +93,44 @@ const SearchPanel = () => {
             {/* Dropdown results */}
             {showResults && (
                 <div className="search-dropdown">
-                    {error && (
-                        <div className="search-error">
-                            <AlertCircle size={14} />
-                            {error}
-                        </div>
-                    )}
+                    <div className="search-dropdown-header">
+                        <span className="results-count">{results.length} results found</span>
+                        <button className="search-close-btn" onClick={() => { setShowResults(false); setQuery(''); setResults([]); }}>
+                            <X size={16} />
+                        </button>
+                    </div>
 
-                    {results.length > 0 && (
-                        <div className="search-results">
-                            <div className="results-header">
-                                <span className="results-count">{results.length} results found</span>
+                    {results.map((result, index) => (
+                        <div key={index} className="result-card">
+                            <div className="result-header">
+                                <h3 className="result-file">{getFileName(result.file)}</h3>
+                                <span className="similarity-score">
+                                    {(result.similarity * 100).toFixed(1)}%
+                                </span>
                             </div>
 
-                            {results.map((result, index) => (
-                                <div key={index} className="result-card">
-                                    <div className="result-header">
-                                        <h3 className="result-file">{getFileName(result.file)}</h3>
-                                        <span className="similarity-score">
-                                            {(result.similarity * 100).toFixed(1)}%
-                                        </span>
-                                    </div>
+                            {result.snippet && (
+                                <p className="result-snippet">{result.snippet}</p>
+                            )}
 
-                                    {result.snippet && (
-                                        <p className="result-snippet">{result.snippet}</p>
-                                    )}
-
-                                    <div className="result-footer">
-                                        <span className="result-path">{result.file}</span>
-                                    </div>
-                                </div>
-                            ))}
+                            <div className="result-footer">
+                                <span className="result-path">{result.file}</span>
+                            </div>
                         </div>
-                    )}
+                    ))}
 
                     {!searching && results.length === 0 && query && !error && (
                         <div className="empty-results">
                             <Search size={24} className="empty-search-icon" />
                             <p>No results found</p>
                             <span className="empty-subtitle">Try a different search query</span>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="search-error">
+                            <AlertCircle size={14} />
+                            {error}
                         </div>
                     )}
                 </div>

@@ -125,6 +125,34 @@
     animation: dropdownIn 0.15s ease;
 }
 
+.search-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.search-close-btn:hover {
+    background: var(--card-hover);
+    color: var(--text-primary);
+}
+
 @keyframes dropdownIn {
     from {
         opacity: 0;

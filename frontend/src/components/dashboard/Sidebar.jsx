@@ -1,17 +1,17 @@
-import React, { useMemo, useCallback } from 'react';
-import { Zap, Layers, FileText, BarChart3, FolderTree } from 'lucide-react';
+import React, { useMemo, useCallback, useState } from 'react';
+import { Zap, Layers, FileText, FolderTree } from 'lucide-react';
 import { FilesystemItem } from '../ui/filesystem-item';
+import api from '../../api';
 import './Sidebar.css';
 
 const Sidebar = ({ files, status, onRefresh }) => {
     const isOnline = status?.status === 'running' || status?.status === 'online';
 
+
+
     const handleDelete = useCallback(async (fileName) => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/files/${encodeURIComponent(fileName)}`, {
-                method: 'DELETE',
-            });
-            const data = await response.json();
+            const { data } = await api.delete(`/files/${encodeURIComponent(fileName)}`);
             if (data.error) {
                 console.error('Delete failed:', data.error);
                 return;
@@ -28,11 +28,9 @@ const Sidebar = ({ files, status, onRefresh }) => {
             const formData = new FormData();
             formData.append('file', newFile);
 
-            const response = await fetch(`http://127.0.0.1:8000/files/${encodeURIComponent(fileName)}`, {
-                method: 'PUT',
-                body: formData,
+            const { data } = await api.put(`/files/${encodeURIComponent(fileName)}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
-            const data = await response.json();
             if (data.error) {
                 console.error('Update failed:', data.error);
                 return;
@@ -122,18 +120,6 @@ const Sidebar = ({ files, status, onRefresh }) => {
                             <span>Upload files to see them here</span>
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* Graphs Placeholder */}
-            <div className="sidebar-section">
-                <div className="section-header">
-                    <BarChart3 size={14} />
-                    <span>Analytics</span>
-                </div>
-                <div className="graph-placeholder">
-                    <BarChart3 size={28} className="placeholder-icon" />
-                    <span>Coming soon</span>
                 </div>
             </div>
         </div>

@@ -1,0 +1,367 @@
+/* ── Auth Pages Theme ────────────────────────────────────── */
+/* Matches the landing page sketch aesthetic */
+
+@import url('https://fonts.googleapis.com/css2?family=Coming+Soon&family=Patrick+Hand&display=swap');
+
+.auth-page {
+    /* Reuse landing page tokens */
+    --lp-background: 45 30% 98%;
+    --lp-foreground: 220 15% 10%;
+    --lp-card: 42 25% 97%;
+    --lp-border: 35 15% 85%;
+    --lp-ink: 220 15% 10%;
+    --lp-ink-light: 220 9% 46%;
+    --lp-sketch-line: 30 10% 75%;
+    --lp-highlight: 42 90% 60%;
+    --lp-paper: 42 30% 96%;
+    --lp-primary-foreground: 0 0% 100%;
+
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: hsl(var(--lp-foreground));
+    font-family: 'Coming Soon', 'Plus Jakarta Sans', system-ui, sans-serif;
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+}
+
+/* ── Decorative background ──────────────────────────────── */
+
+.auth-page .auth-bg-dots {
+    position: absolute;
+    pointer-events: none;
+}
+
+.auth-page .auth-bg-circle {
+    position: absolute;
+    pointer-events: none;
+}
+
+.auth-page .auth-bg-nodes {
+    position: absolute;
+    pointer-events: none;
+}
+
+/* ── Card ───────────────────────────────────────────────── */
+
+.auth-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 32px 36px;
+    border: 2.5px solid hsl(var(--lp-sketch-line));
+    border-radius: 24px 12px 20px 14px / 14px 22px 10px 18px;
+    background: hsl(var(--lp-card));
+    box-shadow:
+        5px 6px 0 hsl(var(--lp-sketch-line) / 0.2),
+        -1px -1px 0 hsl(var(--lp-sketch-line) / 0.06);
+    position: relative;
+    z-index: 1;
+}
+
+/* ── Logo / Header ──────────────────────────────────────── */
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.auth-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    text-decoration: none;
+    color: hsl(var(--lp-foreground));
+}
+
+.auth-logo-text {
+    font-family: 'Patrick Hand', cursive;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.auth-title {
+    font-family: 'Patrick Hand', cursive;
+    font-weight: 700;
+    font-size: 2.2rem;
+    line-height: 1.1;
+    color: hsl(var(--lp-foreground));
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+}
+
+.auth-subtitle {
+    font-family: 'Coming Soon', sans-serif;
+    color: hsl(var(--lp-ink-light));
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* ── Form ───────────────────────────────────────────────── */
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.auth-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.auth-label {
+    font-family: 'Patrick Hand', cursive;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: hsl(var(--lp-ink-light));
+}
+
+.auth-input {
+    padding: 10px 14px;
+    border: 2px solid hsl(var(--lp-sketch-line));
+    border-radius: 14px 8px 12px 10px / 10px 14px 8px 12px;
+    background: #ffffff;
+    color: hsl(var(--lp-foreground));
+    font-family: 'Coming Soon', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input:focus {
+    border-color: hsl(var(--lp-foreground) / 0.5);
+    box-shadow: 3px 3px 0 hsl(var(--lp-sketch-line) / 0.15);
+}
+
+.auth-input::placeholder {
+    color: hsl(var(--lp-ink-light) / 0.5);
+    font-family: 'Coming Soon', sans-serif;
+}
+
+/* ── Primary CTA Button ────────────────────────────────── */
+
+.auth-button {
+    position: relative;
+    width: 100%;
+    padding: 11px;
+    border: 2.5px solid hsl(var(--lp-foreground));
+    border-radius: 18px 8px 20px 10px / 10px 18px 8px 16px;
+    background: hsl(var(--lp-foreground));
+    color: hsl(var(--lp-primary-foreground));
+    font-family: 'Patrick Hand', cursive;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 3px 4px 0 hsl(var(--lp-sketch-line) / 0.3);
+    margin-top: 4px;
+}
+
+.auth-button:hover:not(:disabled) {
+    transform: translate(-1px, -2px);
+    box-shadow: 5px 6px 0 hsl(var(--lp-sketch-line) / 0.3);
+}
+
+.auth-button:active:not(:disabled) {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 2px 0 hsl(var(--lp-sketch-line) / 0.3);
+}
+
+.auth-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ── Divider ────────────────────────────────────────────── */
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 4px 0;
+}
+
+.auth-divider-line {
+    flex: 1;
+    height: 2px;
+    background: hsl(var(--lp-sketch-line) / 0.5);
+    border-radius: 50%;
+    transform: scaleY(1.5) rotate(-0.3deg);
+}
+
+.auth-divider-text {
+    font-family: 'Patrick Hand', cursive;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: hsl(var(--lp-ink-light));
+    white-space: nowrap;
+}
+
+/* ── Google Button ──────────────────────────────────────── */
+
+.auth-google-button {
+    position: relative;
+    width: 100%;
+    padding: 10px;
+    border: 2.5px solid hsl(var(--lp-sketch-line));
+    border-radius: 14px 20px 16px 8px / 8px 16px 20px 14px;
+    background: #ffffff;
+    color: hsl(var(--lp-ink));
+    font-family: 'Patrick Hand', cursive;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.auth-google-button:hover {
+    border-color: hsl(var(--lp-foreground) / 0.4);
+    transform: translateY(-1px);
+    box-shadow: 3px 4px 0 hsl(var(--lp-sketch-line) / 0.15);
+}
+
+.auth-google-button:active {
+    transform: translateY(0);
+    box-shadow: 1px 2px 0 hsl(var(--lp-sketch-line) / 0.15);
+}
+
+.auth-google-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* ── Error / Success Boxes ──────────────────────────────── */
+
+.auth-error {
+    border: 2px solid hsl(0 70% 60% / 0.4);
+    border-radius: 12px 8px 14px 6px / 6px 12px 8px 14px;
+    background: hsl(0 70% 95%);
+    padding: 12px 16px;
+    color: hsl(0 60% 40%);
+    font-family: 'Coming Soon', sans-serif;
+    font-size: 0.875rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auth-success {
+    border: 2px solid hsl(142 60% 50% / 0.4);
+    border-radius: 12px 8px 14px 6px / 6px 12px 8px 14px;
+    background: hsl(142 60% 95%);
+    padding: 12px 16px;
+    color: hsl(142 50% 30%);
+    font-family: 'Coming Soon', sans-serif;
+    font-size: 0.875rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Footer Links ───────────────────────────────────────── */
+
+.auth-footer {
+    text-align: center;
+    margin-top: 16px;
+    font-family: 'Coming Soon', sans-serif;
+    color: hsl(var(--lp-ink-light));
+    font-size: 0.95rem;
+}
+
+.auth-footer a {
+    color: hsl(var(--lp-foreground));
+    font-weight: 700;
+    text-decoration: none;
+    font-family: 'Patrick Hand', cursive;
+    font-size: 1.05rem;
+    position: relative;
+}
+
+.auth-footer a::after {
+    content: '';
+    position: absolute;
+    left: -2px;
+    bottom: -2px;
+    width: calc(100% + 4px);
+    height: 6px;
+    background: hsl(var(--lp-highlight) / 0.5);
+    border-radius: 40% 60% 50% 45% / 80% 40% 70% 50%;
+    transform: rotate(-1deg) scaleY(0.7);
+    z-index: -1;
+}
+
+/* ── Annotation badge (reused from landing) ─────────────── */
+
+.auth-page .annotation-badge {
+    font-family: 'Patrick Hand', cursive;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: hsl(var(--lp-ink-light));
+    background: hsl(var(--lp-paper));
+    border: 1.5px solid hsl(var(--lp-sketch-line) / 0.5);
+    border-radius: 8px 12px 8px 4px / 4px 8px 12px 8px;
+    padding: 2px 10px;
+    transform: rotate(-2deg);
+    box-shadow: 2px 2px 0 hsl(var(--lp-sketch-line) / 0.15);
+    position: absolute;
+    pointer-events: none;
+}
+
+/* ── Float animations (shared with landing) ─────────────── */
+
+@keyframes auth-float {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-8px) rotate(1deg);
+    }
+}
+
+@keyframes auth-float-slow {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-5px) rotate(-0.5deg);
+    }
+}
+
+.auth-page .float-anim {
+    animation: auth-float 6s ease-in-out infinite;
+}
+
+.auth-page .float-anim-slow {
+    animation: auth-float-slow 8s ease-in-out infinite;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 24px 20px;
+    }
+
+    .auth-title {
+        font-size: 2rem;
+    }
+}

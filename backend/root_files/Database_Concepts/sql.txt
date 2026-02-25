@@ -1,1 +1,0 @@
-A foreign key is a column or a set of columns in one database table (the "child table") that refers to the primary key (or a unique key) in another table (the "parent table"), establishing a link and enforcing referential integrity between the data. 

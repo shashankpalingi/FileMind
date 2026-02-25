@@ -1,19 +1,23 @@
-from fastapi import FastAPI, WebSocket, UploadFile, File
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, WebSocket, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from groq import Groq
 import asyncio
 import threading
 import os
-import shutil
+import tempfile
 
-from watcher import start_watching, index_existing_files, FileHandler
-from cluster_engine import storage
-from extractor import extract_text
+from cluster_engine import get_engine_state, remove_file, recluster_all, add_file
+from extractor import extract_text, chunk_text, extract_metadata
 
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from google import genai
+from auth import get_current_user
+from supabase_client import supabase, supabase_admin, STORAGE_BUCKET
 
 # -----------------------------
 # MODEL SETUP
@@ -21,45 +25,16 @@ from google import genai
 
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-client = genai.Client(
-    api_key=os.getenv("GOOGLE_API_KEY")
-)
+# Groq client for RAG chatbot
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
-GEN_MODEL = "gemini-2.5-flash"
-
-# -----------------------------
-# PATH CONFIG
-# -----------------------------
-
-ROOT_FOLDER = os.path.join(os.path.dirname(__file__), "root_files")
-
-# -----------------------------
-# FILE READER (ROBUST)
-# -----------------------------
-
-def read_file_content(file_path):
-    try:
-        # If only filename stored → search inside root_files
-        if not os.path.exists(file_path):
-            found = False
-            for root, _, files in os.walk(ROOT_FOLDER):
-                if os.path.basename(file_path) in files:
-                    file_path = os.path.join(root, os.path.basename(file_path))
-                    found = True
-                    break
-            if not found:
-                print("FILE NOT FOUND IN ROOT:", file_path)
-                return ""
-
-        content = extract_text(file_path)
-        if content:
-            print(f"READ FILE: {file_path} LEN: {len(content)}")
-            return content.strip()
-        return ""
-
-    except Exception as e:
-        print("FILE READ ERROR:", file_path, e)
-        return ""
+# Sanity Check for API Keys
+REQUIRED_KEYS = ["SUPABASE_URL", "SUPABASE_KEY", "GROQ_API_KEY"]
+missing_keys = [k for k in REQUIRED_KEYS if not os.getenv(k) or "xxxx" in str(os.getenv(k))]
+if missing_keys:
+    print(f"\n[!] WARNING: Missing or placeholder API keys in .env: {', '.join(missing_keys)}")
+    print("[!] Some features (Naming, RAG) may fail until these are provided.\n")
 
 # -----------------------------
 # FASTAPI SETUP
@@ -67,6 +42,10 @@ def read_file_content(file_path):
 
 class SearchRequest(BaseModel):
     query: str
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
 
 app = FastAPI()
 
@@ -80,49 +59,173 @@ app.add_middleware(
 
 connected_clients = []
 
+# -----------------------------
+# FILE PROCESSOR (temp file → embed → cluster → delete)
+# -----------------------------
+
+def process_file_content(file_content: bytes, filename: str, user_id: str):
+    """
+    Process a file: extract text, embed, cluster. Uses temp file for extraction.
+    No permanent local storage — files live in Supabase only.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    tmp_path = None
+
+    try:
+        # Save to temp for text extraction
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            tmp.write(file_content)
+            tmp_path = tmp.name
+
+        content = extract_text(tmp_path)
+        if not content:
+            print(f"PROCESS: Skipping empty/unreadable file: {filename}")
+            return
+
+        chunks = chunk_text(content, chunk_size=500, overlap=100)
+        if len(chunks) > 20:
+            print(f"PROCESS: Truncating {filename} to 20 chunks")
+            chunks = chunks[:20]
+
+        if not chunks:
+            return
+
+        print(f"PROCESS: Embedding {len(chunks)} chunks for {filename}...")
+        embeddings = embedding_model.encode(chunks)
+        chunks_data = [{"text": t, "embedding": e.tolist()} for t, e in zip(chunks, embeddings)]
+
+        metadata = extract_metadata(tmp_path)
+        metadata["filename"] = filename
+
+        # Cluster using just the filename as key (no absolute paths)
+        add_file(user_id, filename, chunks_data, metadata)
+        print(f"PROCESS: Done — {filename} (user: {user_id})")
+
+    except Exception as e:
+        import traceback
+        print(f"PROCESS ERROR ({filename}): {e}")
+        traceback.print_exc()
+    finally:
+        # Always clean up temp file
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+# -----------------------------
+# AUTH ENDPOINTS (public)
+# -----------------------------
+
+@app.post("/auth/signup")
+async def signup(request: AuthRequest):
+    try:
+        response = supabase.auth.sign_up({
+            "email": request.email,
+            "password": request.password
+        })
+        if response.user:
+            return {
+                "status": "success",
+                "message": "Account created. Please check your email for confirmation.",
+                "user_id": response.user.id
+            }
+        return {"status": "error", "message": "Sign-up failed"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/auth/login")
+async def login(request: AuthRequest):
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": request.email,
+            "password": request.password
+        })
+        return {
+            "status": "success",
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+            "user": {
+                "id": response.user.id,
+                "email": response.user.email
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
 @app.get("/")
 def read_root():
-    return {"message": "SEFS Backend Running"}
+    return {"message": "FileMind Backend Running"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     connected_clients.append(websocket)
-    print("Client connected")
-
     try:
         while True:
             await asyncio.sleep(1)
     except:
         connected_clients.remove(websocket)
-        print("Client disconnected")
 
 @app.get("/status")
-def system_status():
+def system_status(user_id: str = Depends(get_current_user)):
+    storage, _, _ = get_engine_state(user_id)
     return {
         "status": "running",
         "clusters": len(storage),
         "files": sum(len(c["files"]) for c in storage.values())
     }
 
+# -----------------------------
+# CLUSTER ENDPOINTS
+# -----------------------------
+
 @app.get("/clusters")
-def get_clusters():
-    return storage
+def get_clusters(user_id: str = Depends(get_current_user)):
+    """Returns enriched cluster data with stability, confidence, and bridge files."""
+    storage, _, _ = get_engine_state(user_id)
+
+    # get_engine_state already filters bridge_files from cluster keys
+    # but raw storage still has it — load separately
+    from storage import load_storage
+    raw = load_storage(user_id)
+    bridge_files = raw.get("bridge_files", {})
+
+    enriched = {}
+    for cid, cdata in storage.items():
+        enriched[cid] = {
+            "label": cdata.get("label", f"Cluster_{cid}"),
+            "stability_score": cdata.get("stability_score", 0.0),
+            "internal_cohesion": cdata.get("internal_cohesion", 0.0),
+            "files": cdata.get("files", {}),
+            "metadata": cdata.get("metadata", {}),
+            "file_scores": cdata.get("file_scores", {}),
+        }
+
+    bridge_display = {}
+    for fname, bdata in bridge_files.items():
+        bridge_display[fname] = {**bdata, "filename": os.path.basename(fname)}
+
+    return {"clusters": enriched, "bridge_files": bridge_display}
 
 @app.get("/files")
-def list_files_with_metadata():
-    """
-    Returns list of files with metadata + cluster id.
-    """
+def list_files_with_metadata(user_id: str = Depends(get_current_user)):
+    """Returns list of files with metadata, cluster info, and confidence scores."""
+    storage, _, _ = get_engine_state(user_id)
     all_files = []
     for cluster_id, cluster_data in storage.items():
         metadata_map = cluster_data.get("metadata", {})
-        for file_path in cluster_data["files"]:
+        file_scores = cluster_data.get("file_scores", {})
+        for file_name in cluster_data["files"]:
+            scores = file_scores.get(file_name, {})
             all_files.append({
-                "file": file_path,
+                "file": file_name,
+                "cluster_name": os.path.basename(file_name),
                 "cluster_id": cluster_id,
                 "cluster_label": cluster_data.get("label", "Unknown"),
-                "metadata": metadata_map.get(file_path, {})
+                "metadata": metadata_map.get(file_name, {}),
+                "confidence": scores.get("confidence", 0.0),
+                "placement_reason": scores.get("placement_reason", ""),
             })
     return all_files
 
@@ -131,33 +234,40 @@ def list_files_with_metadata():
 # -----------------------------
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
     """
-    Accepts a file upload, saves it to root_files/,
-    and triggers processing (embed + cluster + sync).
+    Upload flow:
+    1. Store in Supabase Storage (permanent)
+    2. Process in background: temp file → extract → embed → cluster → delete temp
+    No permanent local storage.
     """
     try:
-        # Validate file type
         allowed_extensions = {".txt", ".pdf"}
-        ext = os.path.splitext(file.filename)[1].lower()
+        filename = "".join(c for c in file.filename if c.isalnum() or c in (".", "-", "_")).strip()
+        ext = os.path.splitext(filename)[1].lower()
         if ext not in allowed_extensions:
             return {"error": f"Unsupported file type: {ext}. Only .txt and .pdf are allowed."}
 
-        # Save file to root_files/
-        dest_path = os.path.join(ROOT_FOLDER, file.filename)
-        with open(dest_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        content = await file.read()
+        storage_path = f"{user_id}/{filename}"
 
-        print(f"UPLOAD: Saved {file.filename} to {dest_path}")
+        # Upload to Supabase Storage (permanent home)
+        supabase_admin.storage.from_(STORAGE_BUCKET).upload(
+            path=storage_path,
+            file=content,
+            file_options={"content-type": file.content_type or "application/octet-stream", "upsert": "true"}
+        )
+        print(f"UPLOAD: Stored {filename} in Supabase")
 
-        # Process in background thread (extract, embed, cluster, sync)
-        handler = FileHandler()
-        thread = threading.Thread(target=handler.process_file, args=(dest_path,), daemon=True)
+        # Process in background thread (temp file, no permanent local storage)
+        thread = threading.Thread(
+            target=process_file_content,
+            args=(content, filename, user_id),
+            daemon=True
+        )
         thread.start()
 
-        return {"status": "success", "filename": file.filename, "path": dest_path}
-
+        return {"status": "success", "filename": filename, "path": storage_path}
     except Exception as e:
         print(f"UPLOAD ERROR: {e}")
         return {"error": str(e)}
@@ -167,48 +277,26 @@ async def upload_file(file: UploadFile = File(...)):
 # -----------------------------
 
 @app.delete("/files/{filename}")
-async def delete_file(filename: str):
+async def delete_file(filename: str, user_id: str = Depends(get_current_user)):
     """
-    Deletes a file by filename from disk and storage.
-    Searches recursively in root_files/ since files may be in cluster subfolders.
+    Delete flow:
+    1. Remove from Supabase Storage
+    2. Remove from cluster storage (JSON)
+    No local disk operations.
     """
     try:
-        # Find the file recursively in root_files
-        file_path = None
-        for root, _, files in os.walk(ROOT_FOLDER):
-            if filename in files:
-                file_path = os.path.join(root, filename)
-                break
+        # Remove from Supabase Storage
+        storage_path = f"{user_id}/{filename}"
+        try:
+            supabase_admin.storage.from_(STORAGE_BUCKET).remove([storage_path])
+            print(f"DELETE: Removed {filename} from Supabase")
+        except Exception as e:
+            print(f"DELETE: Supabase warning: {e}")
 
-        if not file_path:
-            return {"error": f"File '{filename}' not found"}
+        # Remove from cluster storage
+        remove_file(user_id, filename)
 
-        abs_path = os.path.abspath(file_path)
-
-        # Remove from storage
-        removed = False
-        for cluster_id, cluster_data in storage.items():
-            if abs_path in cluster_data["files"]:
-                cluster_data["files"].pop(abs_path)
-                if "metadata" in cluster_data and abs_path in cluster_data["metadata"]:
-                    cluster_data["metadata"].pop(abs_path)
-                removed = True
-                print(f"DELETE: Removed {filename} from cluster {cluster_id}")
-                break
-
-        # Delete physical file
-        if os.path.exists(abs_path):
-            os.remove(abs_path)
-            print(f"DELETE: Removed file from disk: {abs_path}")
-
-        # Save and sync
-        if removed:
-            from cluster_engine import save_storage, sync_folders
-            save_storage(storage)
-            sync_folders(ROOT_FOLDER)
-
-        return {"status": "success", "filename": filename, "removed_from_index": removed}
-
+        return {"status": "success", "filename": filename}
     except Exception as e:
         print(f"DELETE ERROR: {e}")
         return {"error": str(e)}
@@ -218,53 +306,41 @@ async def delete_file(filename: str):
 # -----------------------------
 
 @app.put("/files/{filename}")
-async def update_file(filename: str, file: UploadFile = File(...)):
+async def update_file(filename: str, file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
     """
-    Replaces an existing file with a new upload and re-processes it.
-    The file is found by its original name, replaced on disk,
-    then re-embedded and re-clustered.
+    Update flow:
+    1. Replace in Supabase Storage
+    2. Remove old entry from cluster storage
+    3. Re-process new version (temp file)
     """
     try:
-        # Validate file type
         allowed_extensions = {".txt", ".pdf"}
         ext = os.path.splitext(file.filename)[1].lower()
         if ext not in allowed_extensions:
-            return {"error": f"Unsupported file type: {ext}. Only .txt and .pdf are allowed."}
+            return {"error": f"Unsupported file type: {ext}"}
 
-        # Find the existing file recursively
-        existing_path = None
-        for root, _, files in os.walk(ROOT_FOLDER):
-            if filename in files:
-                existing_path = os.path.join(root, filename)
-                break
+        content = await file.read()
+        storage_path = f"{user_id}/{filename}"
 
-        if not existing_path:
-            return {"error": f"File '{filename}' not found"}
+        # Replace in Supabase
+        supabase_admin.storage.from_(STORAGE_BUCKET).upload(
+            path=storage_path,
+            file=content,
+            file_options={"content-type": file.content_type or "application/octet-stream", "upsert": "true"}
+        )
+        print(f"UPDATE: Replaced {filename} in Supabase")
 
-        abs_path = os.path.abspath(existing_path)
+        # Remove old entry and re-process
+        remove_file(user_id, filename)
 
-        # Remove old entry from storage (it will be re-added by process_file)
-        for cluster_data in storage.values():
-            if abs_path in cluster_data["files"]:
-                cluster_data["files"].pop(abs_path)
-                if "metadata" in cluster_data and abs_path in cluster_data["metadata"]:
-                    cluster_data["metadata"].pop(abs_path)
-                break
-
-        # Overwrite the file on disk
-        with open(abs_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
-
-        print(f"UPDATE: Replaced {filename} at {abs_path}")
-
-        # Re-process in background thread (extract, embed, cluster, sync)
-        handler = FileHandler()
-        thread = threading.Thread(target=handler.process_file, args=(abs_path,), daemon=True)
+        thread = threading.Thread(
+            target=process_file_content,
+            args=(content, filename, user_id),
+            daemon=True
+        )
         thread.start()
 
-        return {"status": "success", "filename": filename, "path": abs_path}
-
+        return {"status": "success", "filename": filename, "path": storage_path}
     except Exception as e:
         print(f"UPDATE ERROR: {e}")
         return {"error": str(e)}
@@ -274,29 +350,28 @@ async def update_file(filename: str, file: UploadFile = File(...)):
 # -----------------------------
 
 @app.post("/search")
-def search_files(request: SearchRequest):
+def search_files(request: SearchRequest, user_id: str = Depends(get_current_user)):
     try:
+        storage, _, _ = get_engine_state(user_id)
         query_embedding = embedding_model.encode(request.query)
         results = []
 
         for cluster_id, cluster_data in storage.items():
-            for file_path, chunks in cluster_data["files"].items():
-                # Search against chunks (Feature 1)
+            for file_name, chunks in cluster_data["files"].items():
                 max_sim = -1.0
                 best_chunk = ""
-                
+
                 for chunk in chunks:
                     sim = cosine_similarity(
                         [query_embedding],
                         [chunk["embedding"]]
                     )[0][0]
-                    
                     if sim > max_sim:
                         max_sim = sim
                         best_chunk = chunk["text"]
 
                 results.append({
-                    "file": file_path,
+                    "file": file_name,
                     "similarity": float(max_sim),
                     "snippet": best_chunk[:200] + "...",
                     "cluster_label": cluster_data.get("label", cluster_id)
@@ -313,41 +388,33 @@ def search_files(request: SearchRequest):
 # -----------------------------
 
 @app.post("/ask")
-def rag_answer(request: SearchRequest):
+def rag_answer(request: SearchRequest, user_id: str = Depends(get_current_user)):
     try:
+        storage, _, _ = get_engine_state(user_id)
         query_embedding = embedding_model.encode(request.query)
         all_chunks = []
 
         for cluster_id, cluster_data in storage.items():
-            for file_path, chunks in cluster_data["files"].items():
+            for file_name, chunks in cluster_data["files"].items():
                 for chunk in chunks:
                     similarity = cosine_similarity(
                         [query_embedding],
                         [chunk["embedding"]]
                     )[0][0]
-                    
                     all_chunks.append({
-                        "file": file_path,
+                        "file": file_name,
                         "text": chunk["text"],
                         "similarity": similarity
                     })
 
-        # Sort by similarity and take top N (Feature 2)
         all_chunks.sort(key=lambda x: x["similarity"], reverse=True)
-        top_chunks = all_chunks[:10]  # Take top 10 chunks to filter down
+        top_chunks = all_chunks[:10]
 
         if not top_chunks:
-            return {
-                "answer": "No relevant documents found in knowledge base.",
-                "sources": [],
-                "confidence": 0.0
-            }
+            return {"answer": "No relevant documents found.", "sources": [], "confidence": 0.0}
 
-        # CALCULATE CONFIDENCE (Feature 4: average similarity of retrieved chunks)
-        # We'll take the top 3 chunks for confidence Calculation
         confidence = sum(c["similarity"] for c in top_chunks[:3]) / min(3, len(top_chunks))
 
-        # SMART CONTEXT BUILDER (Feature 2)
         MAX_CONTEXT_CHARS = 4000
         context_parts = []
         chars_used = 0
@@ -355,17 +422,16 @@ def rag_answer(request: SearchRequest):
         seen_chunks = set()
 
         for chunk in top_chunks:
-            # deduplicate (Feature 2)
             if chunk["text"] in seen_chunks:
                 continue
             seen_chunks.add(chunk["text"])
 
             header = f"[File: {os.path.basename(chunk['file'])}]\n"
             content = f"{chunk['text']}\n\n"
-            
+
             if chars_used + len(header) + len(content) > MAX_CONTEXT_CHARS:
                 break
-                
+
             context_parts.append(header + content)
             chars_used += len(header) + len(content)
             sources.add(chunk["file"])
@@ -389,47 +455,67 @@ Question:
 Answer:
 """
 
-        # Gemini Generation
-        config = {
-            "max_output_tokens": 1024,
-            "temperature": 0.1,
-        }
-
-        response = client.models.generate_content(
-            model=GEN_MODEL,
-            contents=prompt,
-            config=config
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "You are an AI assistant for document QA. Use ONLY the provided context."},
+                {"role": "user", "content": prompt}
+            ],
+            model=GROQ_MODEL,
+            temperature=0.1,
+            max_tokens=1024,
         )
 
-        answer = response.text.strip() if response and response.text else "AI returned an empty response."
+        answer = chat_completion.choices[0].message.content.strip() if chat_completion.choices else "AI returned empty response."
 
         return {
             "answer": answer,
             "sources": list(sources),
             "confidence": float(confidence)
         }
-
     except Exception as e:
         print("RAG ERROR:", e)
-        # Robust Error Handling (Feature 5)
-        error_msg = "AI service encountered an error."
-        if "429" in str(e):
-            error_msg = "API Rate limit exceeded."
+        error_msg = "API Rate limit exceeded." if "429" in str(e) else "AI service error."
+        return {"answer": error_msg, "sources": [], "confidence": 0.0, "error": str(e)}
+
+# -----------------------------
+# RECLUSTER ENDPOINT
+# -----------------------------
+
+@app.post("/recluster")
+async def trigger_recluster(user_id: str = Depends(get_current_user)):
+    """Re-cluster all files from stored embeddings. No disk access needed."""
+    try:
+        recluster_all(user_id)
+
+        storage, _, _ = get_engine_state(user_id)
+        from storage import load_storage
+        bridge_files = load_storage(user_id).get("bridge_files", {})
+
+        cluster_summary = {}
+        stability_scores = []
+        for cid, cdata in storage.items():
+            stability = cdata.get("stability_score", 0.0)
+            stability_scores.append(stability)
+            cluster_summary[cid] = {
+                "label": cdata.get("label", "Unknown"),
+                "file_count": len(cdata["files"]),
+                "files": list(cdata["files"].keys()),
+                "stability_score": stability,
+            }
+
+        avg_stability = sum(stability_scores) / len(stability_scores) if stability_scores else 0.0
+
         return {
-            "answer": error_msg,
-            "sources": [],
-            "confidence": 0.0,
-            "error": str(e)
+            "status": "success",
+            "clusters": len(storage),
+            "summary": cluster_summary,
+            "avg_stability": round(avg_stability, 4),
+            "bridge_file_count": len(bridge_files),
         }
+    except Exception as e:
+        print(f"RECLUSTER ERROR: {e}")
+        return {"error": str(e)}
 
-# -----------------------------
-# WATCHER THREAD
-# -----------------------------
-
-def run_watcher():
-    print("Indexing existing files...")
-    index_existing_files()
-    print("Watching for new files...")
-    start_watching(ROOT_FOLDER)
-
-threading.Thread(target=run_watcher, daemon=True).start()
+# No watcher thread — files come through the API only.
+# Embeddings are stored in JSON. No startup re-indexing needed.
+print("✓ FileMind backend ready (SaaS mode — no watcher, no local storage)")

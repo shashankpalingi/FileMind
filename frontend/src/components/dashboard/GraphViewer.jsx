@@ -14,7 +14,7 @@ const GraphViewer = () => {
     const fetchClusters = async () => {
         try {
             const res = await getClusters();
-            setClusters(res.data || {});
+            setClusters(res.data?.clusters || {});
         } catch (err) {
             console.error('Graph fetch error:', err);
         } finally {

@@ -1,17 +1,64 @@
 import json
 import os
+import threading
 
-STORAGE_FILE = "embeddings.json"
-
-
-def load_storage():
-    if not os.path.exists(STORAGE_FILE):
-        return {}
-
-    with open(STORAGE_FILE, "r") as f:
-        return json.load(f)
+# Per-user locks to prevent concurrent writes to the same storage file
+_user_locks = {}
+_lock_guard = threading.Lock()
 
 
-def save_storage(data):
-    with open(STORAGE_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+def _get_lock(user_id):
+    """Get or create a threading lock for a specific user."""
+    with _lock_guard:
+        if user_id not in _user_locks:
+            _user_locks[user_id] = threading.Lock()
+        return _user_locks[user_id]
+
+
+def get_user_storage_path(user_id):
+    return f"embeddings_{user_id}.json"
+
+
+def load_storage(user_id):
+    lock = _get_lock(user_id)
+    with lock:
+        storage_file = get_user_storage_path(user_id)
+        if not os.path.exists(storage_file):
+            return {}
+        try:
+            with open(storage_file, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"STORAGE: Error reading {storage_file}: {e}")
+            # Try backup
+            bak = storage_file + ".bak"
+            if os.path.exists(bak):
+                print(f"STORAGE: Recovering from backup {bak}")
+                with open(bak, "r") as f:
+                    return json.load(f)
+            return {}
+
+
+def save_storage(data, user_id):
+    lock = _get_lock(user_id)
+    with lock:
+        storage_file = get_user_storage_path(user_id)
+        # Backup existing file before overwrite
+        if os.path.exists(storage_file):
+            bak = storage_file + ".bak"
+            try:
+                os.replace(storage_file, bak)
+            except OSError:
+                pass
+        # Atomic write: write to temp, then rename
+        tmp_file = storage_file + ".tmp"
+        try:
+            with open(tmp_file, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp_file, storage_file)
+        except Exception as e:
+            print(f"STORAGE: Write error for {storage_file}: {e}")
+            # Restore from backup if write failed
+            bak = storage_file + ".bak"
+            if os.path.exists(bak) and not os.path.exists(storage_file):
+                os.replace(bak, storage_file)

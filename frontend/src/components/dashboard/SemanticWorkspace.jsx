@@ -1,17 +1,44 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Brain, Bell, User } from 'lucide-react';
+import { FolderSearch, User, LogOut, ChevronDown } from 'lucide-react';
 import FileUpload from './FileUpload';
 import SearchPanel from './SearchPanel';
 import ChatAssistant from './ChatAssistant';
 import Sidebar from './Sidebar';
 import DendrogramChart from '../ui/dendrogram';
 import ThemeToggle from './ThemeToggle';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import api from '../../api';
 import './SemanticWorkspace.css';
 
 const SemanticWorkspace = () => {
   const [files, setFiles] = useState([]);
   const [systemStatus, setSystemStatus] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const userMenuRef = useRef(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   // Refs to compare before setting state (avoids unnecessary re-renders)
   const filesRef = useRef('[]');
@@ -20,14 +47,11 @@ const SemanticWorkspace = () => {
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/files');
-      if (response.ok) {
-        const data = await response.json();
-        const json = JSON.stringify(data);
-        if (json !== filesRef.current) {
-          filesRef.current = json;
-          setFiles(data);
-        }
+      const { data } = await api.get('/files');
+      const json = JSON.stringify(data);
+      if (json !== filesRef.current) {
+        filesRef.current = json;
+        setFiles(data);
       }
     } catch (error) {
       console.error('Failed to fetch files:', error);
@@ -37,14 +61,11 @@ const SemanticWorkspace = () => {
   // Fetch system status — only update state if data changed
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/status');
-      if (response.ok) {
-        const data = await response.json();
-        const json = JSON.stringify(data);
-        if (json !== statusRef.current) {
-          statusRef.current = json;
-          setSystemStatus(data);
-        }
+      const { data } = await api.get('/status');
+      const json = JSON.stringify(data);
+      if (json !== statusRef.current) {
+        statusRef.current = json;
+        setSystemStatus(data);
       }
     } catch (error) {
       console.error('Failed to fetch status:', error);
@@ -75,9 +96,9 @@ const SemanticWorkspace = () => {
           <div className="nav-left">
             <div className="nav-brand">
               <div className="brand-icon">
-                <Brain size={22} />
+                <FolderSearch size={22} />
               </div>
-              <span className="brand-name">Knowledge Workspace</span>
+              <span className="brand-name">FileMind</span>
             </div>
           </div>
 
@@ -87,11 +108,32 @@ const SemanticWorkspace = () => {
 
           <div className="nav-right">
             <ThemeToggle />
-            <button className="nav-icon-btn" aria-label="Notifications">
-              <Bell size={18} />
-            </button>
-            <div className="nav-avatar">
-              <User size={16} />
+            <div className="user-dropdown-wrapper" ref={userMenuRef}>
+              <button
+                className="user-dropdown-trigger"
+                onClick={() => setUserMenuOpen(prev => !prev)}
+                aria-label="User menu"
+              >
+                <div className="nav-avatar">
+                  <User size={16} />
+                </div>
+              </button>
+              {userMenuOpen && (
+                <div className="user-dropdown-menu">
+                  <div className="dropdown-user-info">
+                    <div className="dropdown-avatar"><User size={18} /></div>
+                    <div className="dropdown-user-details">
+                      <span className="dropdown-user-name">{user?.email?.split('@')[0] || 'User'}</span>
+                      <span className="dropdown-user-email">{user?.email || ''}</span>
+                    </div>
+                  </div>
+                  <div className="dropdown-divider" />
+                  <button className="dropdown-logout" onClick={handleLogout}>
+                    <LogOut size={14} />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

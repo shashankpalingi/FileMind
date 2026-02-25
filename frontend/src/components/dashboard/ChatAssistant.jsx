@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Sparkles, Send, Loader2 } from 'lucide-react';
+import api from '../../api';
 import './ChatAssistant.css';
 
 const ChatAssistant = () => {
@@ -32,29 +33,17 @@ const ChatAssistant = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ query: userMessage.content }),
-            });
+            const { data } = await api.post('/ask', { query: userMessage.content });
 
-            if (response.ok) {
-                const data = await response.json();
+            const aiMessage = {
+                type: 'assistant',
+                content: data.answer || 'No answer available',
+                sources: data.sources || [],
+                confidence: data.confidence,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
 
-                const aiMessage = {
-                    type: 'assistant',
-                    content: data.answer || 'No answer available',
-                    sources: data.sources || [],
-                    confidence: data.confidence,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                };
-
-                setMessages(prev => [...prev, aiMessage]);
-            } else {
-                throw new Error('Failed to get response');
-            }
+            setMessages(prev => [...prev, aiMessage]);
         } catch (error) {
             const errorMessage = {
                 type: 'assistant',
