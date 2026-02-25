@@ -40,10 +40,10 @@ def _cosine_sim_matrix(vectors):
     normalized = mat / norms
     return np.dot(normalized, normalized.T)
 
-# ─── Base Thresholds (tuned for google-genai embeddings) ──────────────
-BASE_PRIMARY_THRESHOLD = 0.58
-BASE_COHERENCE_THRESHOLD = 0.56
-BASE_MERGE_THRESHOLD = 0.60
+# ─── Base Thresholds (tuned strictly for google-genai embeddings) ─────
+BASE_PRIMARY_THRESHOLD = 0.72
+BASE_COHERENCE_THRESHOLD = 0.68
+BASE_MERGE_THRESHOLD = 0.75
 BRIDGE_PROXIMITY_RATIO = 0.85
 
 
@@ -53,7 +53,7 @@ def _adaptive_factor(storage):
     """Scale thresholds by corpus size. Small=lenient, large=strict."""
     total = sum(len(c.get("files", {})) for k, c in storage.items() if k != "bridge_files")
     if total < 5:
-        return 0.96
+        return 1.05  # Extra strict for first few files
     elif total <= 20:
         return 1.0
     return 1.02
