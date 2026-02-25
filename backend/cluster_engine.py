@@ -41,9 +41,9 @@ def _cosine_sim_matrix(vectors):
     return np.dot(normalized, normalized.T)
 
 # ─── Base Thresholds (tuned for google-genai embeddings) ──────────────
-BASE_PRIMARY_THRESHOLD = 0.65
-BASE_COHERENCE_THRESHOLD = 0.60
-BASE_MERGE_THRESHOLD = 0.70
+BASE_PRIMARY_THRESHOLD = 0.58
+BASE_COHERENCE_THRESHOLD = 0.56
+BASE_MERGE_THRESHOLD = 0.60
 BRIDGE_PROXIMITY_RATIO = 0.85
 
 
