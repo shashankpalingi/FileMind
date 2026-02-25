@@ -9,3 +9,4 @@ PyPDF2
 PyMuPDF
 pydantic
 python-jose[cryptography]
+python-multipart
