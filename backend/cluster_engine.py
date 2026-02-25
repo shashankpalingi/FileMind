@@ -258,9 +258,12 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
 
         # Rename the cluster dynamically as new files join
         try:
-            file_texts = [content["text"] for f_name in storage[cid].get("files", {}) for content in storage[cid]["files"][f_name]]
-            sample_texts = file_texts[:5] 
-            new_label = generate_cluster_label(sample_texts)
+            sample_dict = {
+                f_name: storage[cid]["files"][f_name][0]["text"]
+                for f_name in storage[cid].get("files", {})
+                if storage[cid]["files"][f_name]
+            }
+            new_label = generate_cluster_label(sample_dict)
             if new_label and not new_label.startswith("Refining"):
                 storage[cid]["label"] = new_label
         except Exception as e:
