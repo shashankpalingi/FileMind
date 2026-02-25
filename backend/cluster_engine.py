@@ -40,10 +40,10 @@ def _cosine_sim_matrix(vectors):
     normalized = mat / norms
     return np.dot(normalized, normalized.T)
 
-# ─── Base Thresholds (tuned for all-MiniLM-L6-v2) ─────────────────────
-BASE_PRIMARY_THRESHOLD = 0.35
-BASE_COHERENCE_THRESHOLD = 0.25
-BASE_MERGE_THRESHOLD = 0.38
+# ─── Base Thresholds (tuned for google-genai embeddings) ──────────────
+BASE_PRIMARY_THRESHOLD = 0.65
+BASE_COHERENCE_THRESHOLD = 0.60
+BASE_MERGE_THRESHOLD = 0.70
 BRIDGE_PROXIMITY_RATIO = 0.85
 
 
@@ -256,7 +256,16 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
         storage[cid]["stability_score"] = round(_compute_stability(storage[cid]), 4)
         storage[cid]["internal_cohesion"] = storage[cid]["stability_score"]
 
-        # NO re-naming here — only name on creation or recluster
+        # Rename the cluster dynamically as new files join
+        try:
+            file_texts = [content["text"] for f_name in storage[cid].get("files", {}) for content in storage[cid]["files"][f_name]]
+            sample_texts = file_texts[:5] 
+            new_label = generate_cluster_label(sample_texts)
+            if new_label and not new_label.startswith("Refining"):
+                storage[cid]["label"] = new_label
+        except Exception as e:
+            print(f"Error renaming cluster: {e}")
+
         print(f"CLUSTER: {file_name} → cluster {cid} ({storage[cid].get('label', '?')}) [conf={confidence:.2f}]")
     else:
         new_id = str(_next_cluster_id(storage))

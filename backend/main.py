@@ -411,7 +411,7 @@ def search_files(request: SearchRequest, user_id: str = Depends(get_current_user
 def rag_answer(request: SearchRequest, user_id: str = Depends(get_current_user)):
     try:
         storage, _, _ = get_engine_state(user_id)
-        query_embedding = embedding_model.encode(request.query)
+        query_embedding = embed_query(request.query)
         all_chunks = []
 
         for cluster_id, cluster_data in storage.items():
