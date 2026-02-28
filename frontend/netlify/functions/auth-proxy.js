@@ -20,10 +20,27 @@ export const handler = async (event, context) => {
         const response = await fetch(url, fetchOptions);
 
         const headers = {};
+        const netlifyUrl = 'https://filemind08.netlify.app/supabase';
+
         response.headers.forEach((value, name) => {
-            // Rewrite any location headers pointing to supabase
-            if (name.toLowerCase() === 'location' && value.includes(supabaseUrl)) {
-                headers[name] = value.split(supabaseUrl).join(process.env.URL || 'https://filemind08.netlify.app/supabase');
+            const lowerName = name.toLowerCase();
+            if (lowerName === 'location') {
+                // We must replace both plain and encoded versions of the Supabase URL
+                let newValue = value;
+
+                // Plain replacement
+                newValue = newValue.split(supabaseUrl).join(netlifyUrl);
+
+                // Encoded replacement (very important for Google redirect_uri)
+                const encodedSupabase = encodeURIComponent(supabaseUrl);
+                const encodedNetlify = encodeURIComponent(netlifyUrl);
+                newValue = newValue.split(encodedSupabase).join(encodedNetlify);
+
+                headers[name] = newValue;
+            } else if (lowerName === 'set-cookie') {
+                // Pass cookies through properly
+                if (!headers['set-cookie']) headers['set-cookie'] = [];
+                headers['set-cookie'].push(value);
             } else {
                 headers[name] = value;
             }
@@ -31,7 +48,8 @@ export const handler = async (event, context) => {
 
         return {
             statusCode: response.status,
-            headers: headers,
+            multiValueHeaders: headers['set-cookie'] ? { 'set-cookie': headers['set-cookie'] } : undefined,
+            headers: { ...headers, 'set-cookie': undefined },
             body: await response.text(),
         };
     } catch (error) {
