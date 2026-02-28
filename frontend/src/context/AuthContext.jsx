@@ -48,13 +48,26 @@ export function AuthProvider({ children }) {
     };
 
     const signInWithGoogle = async () => {
+        const isProd = import.meta.env.PROD;
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: window.location.origin + '/dashboard',
+                skipBrowserRedirect: isProd, // Manually redirect in prod to rewrite the URL
             },
         });
+
         if (error) throw error;
+
+        if (isProd && data?.url) {
+            // Rewrite the Supabase URL to use our Netlify proxy
+            const proxiedUrl = data.url.replace(
+                'https://usxsjzobzjlfkpgymswm.supabase.co',
+                window.location.origin + '/supabase'
+            );
+            window.location.href = proxiedUrl;
+        }
+
         return data;
     };
 
