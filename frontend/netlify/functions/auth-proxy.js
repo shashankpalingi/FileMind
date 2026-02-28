@@ -3,13 +3,10 @@ export const handler = async (event, context) => {
     const path = event.path.replace('/supabase', '');
     const url = `${supabaseUrl}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
 
-    // Use multiValueHeaders for incoming request to catch all cookies
-    const requestHeaders = {};
-    Object.keys(event.multiValueHeaders || {}).forEach(key => {
-        requestHeaders[key.toLowerCase()] = event.multiValueHeaders[key].join('; ');
-    });
+    // 1. Prepare Request Headers (Extremely Transparent)
+    const requestHeaders = { ...event.headers };
 
-    // Override host and handle origins
+    // Override host and origin to match Supabase
     requestHeaders['host'] = 'usxsjzobzjlfkpgymswm.supabase.co';
     if (requestHeaders['origin']) requestHeaders['origin'] = supabaseUrl;
     if (requestHeaders['referer']) requestHeaders['referer'] = supabaseUrl;
@@ -29,31 +26,40 @@ export const handler = async (event, context) => {
         const headers = {};
         const netlifyUrl = 'https://filemind08.netlify.app/supabase';
 
-        // Extract and rewrite headers
+        // 2. Prepare Response Headers
         response.headers.forEach((value, name) => {
             const lowerName = name.toLowerCase();
+
             if (lowerName === 'location') {
+                // Rewrite redirects (including the critical Google Redirect URI)
                 let newValue = value;
                 newValue = newValue.split(supabaseUrl).join(netlifyUrl);
                 const encodedSupabase = encodeURIComponent(supabaseUrl);
                 const encodedNetlify = encodeURIComponent(netlifyUrl);
                 newValue = newValue.split(encodedSupabase).join(encodedNetlify);
                 headers[name] = newValue;
-            } else if (!['set-cookie', 'content-encoding', 'content-length', 'transfer-encoding'].includes(lowerName)) {
+            } else if (lowerName !== 'set-cookie' && !['content-encoding', 'content-length', 'transfer-encoding'].includes(lowerName)) {
                 headers[name] = value;
             }
         });
 
-        // HANDLE COOKIES PROPERLY (Multi-value)
-        const rawCookies = response.headers.getSetCookie ? response.headers.getSetCookie() : [];
-        const processedCookies = rawCookies.map(cookie => {
-            return cookie
-                .replace(/Domain=[^;]+;?/, '')
-                .replace(/Path=[^;]+;?/, 'Path=/');
+        // 3. Handle Set-Cookie Carefully
+        // We MUST use the native getSetCookie if available, or fall back to manual extraction
+        let cookies = [];
+        if (response.headers.getSetCookie) {
+            cookies = response.headers.getSetCookie();
+        } else if (response.headers.raw) {
+            // Some older Node environments in serverless
+            cookies = response.headers.raw()['set-cookie'] || [];
+        }
+
+        const processedCookies = cookies.map(c => {
+            return c.replace(/Domain=[^;]+;?/i, '').replace(/Path=[^;]+;?/i, 'Path=/');
         });
 
         const responseText = await response.text();
 
+        // 4. Return to Netlify
         return {
             statusCode: response.status,
             multiValueHeaders: processedCookies.length > 0 ? { 'set-cookie': processedCookies } : {},
@@ -61,9 +67,10 @@ export const handler = async (event, context) => {
             body: responseText,
         };
     } catch (error) {
+        console.error('Proxy Error:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: error.message }),
+            body: JSON.stringify({ error: 'Proxy failed to connect to Supabase' }),
         };
     }
 };
