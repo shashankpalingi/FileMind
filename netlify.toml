@@ -5,9 +5,8 @@
 
 [[redirects]]
   from = "/supabase/*"
-  to = "https://usxsjzobzjlfkpgymswm.supabase.co/:splat"
+  to = "/.netlify/functions/auth-proxy"
   status = 200
-  force = true
 
 [[redirects]]
   from = "/*"

@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
     const signInWithGoogle = async () => {
         const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
 
-        // In production, we MUST use the proxied callback URL to keep the same domain
+        // In production, we MUST use the proxied callback URL
         const callbackUrl = isProd
             ? `${window.location.origin}/supabase/auth/v1/callback`
             : `${window.location.origin}/dashboard`;
@@ -59,30 +59,10 @@ export function AuthProvider({ children }) {
             provider: 'google',
             options: {
                 redirectTo: callbackUrl,
-                skipBrowserRedirect: isProd,
             },
         });
 
         if (error) throw error;
-
-        if (isProd && data?.url) {
-            // DEEP REPLACEMENT:
-            // We must replace ALL occurrences of the Supabase URL.
-            // One for the authorize call, and one inside the 'redirect_uri' for Google.
-            const supabaseOrigin = 'https://usxsjzobzjlfkpgymswm.supabase.co';
-            const proxyOrigin = window.location.origin + '/supabase';
-
-            // Replace decoded version
-            let finalUrl = data.url.split(supabaseOrigin).join(proxyOrigin);
-
-            // Replace encoded version (just in case)
-            const encodedSupabase = encodeURIComponent(supabaseOrigin);
-            const encodedProxy = encodeURIComponent(proxyOrigin);
-            finalUrl = finalUrl.split(encodedSupabase).join(encodedProxy);
-
-            window.location.href = finalUrl;
-        }
-
         return data;
     };
 
