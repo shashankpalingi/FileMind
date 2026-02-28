@@ -54,10 +54,18 @@ export const handler = async (event, context) => {
         }
 
         const processedCookies = cookies.map(c => {
-            // Rewrite domain and path to make them first-party for Netlify
-            return c
+            // Rewrite domain/path and ensure SameSite=Lax for reliable redirects
+            let processed = c
                 .replace(/Domain=[^;]+;?/i, '')
                 .replace(/Path=[^;]+;?/i, 'Path=/');
+
+            if (!processed.includes('SameSite')) {
+                processed += '; SameSite=Lax';
+            }
+            if (!processed.includes('Secure') && !processed.includes('secure')) {
+                processed += '; Secure';
+            }
+            return processed;
         });
 
         const responseText = await response.text();

@@ -11,8 +11,11 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log('AuthProvider: Checking initial session...');
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
+            console.log('AuthProvider: Initial session result:', session ? 'Session Found' : 'No Session');
+            if (session) console.log('AuthProvider: User ID:', session.user.id);
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
@@ -20,7 +23,8 @@ export function AuthProvider({ children }) {
 
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            (_event, session) => {
+            (event, session) => {
+                console.log('AuthProvider: Auth state changed:', event, session ? 'Session Active' : 'No Session');
                 setSession(session);
                 setUser(session?.user ?? null);
                 setLoading(false);
