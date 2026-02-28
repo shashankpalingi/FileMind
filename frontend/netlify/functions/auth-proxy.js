@@ -3,16 +3,21 @@ export const handler = async (event, context) => {
     const path = event.path.replace('/supabase', '');
     const url = `${supabaseUrl}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
 
+    const fetchOptions = {
+        method: event.httpMethod,
+        headers: {
+            ...event.headers,
+            host: 'usxsjzobzjlfkpgymswm.supabase.co',
+        },
+        redirect: 'manual', // Intercept redirects
+    };
+
+    if (event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD' && event.body) {
+        fetchOptions.body = event.body;
+    }
+
     try {
-        const response = await fetch(url, {
-            method: event.httpMethod,
-            headers: {
-                ...event.headers,
-                host: 'usxsjzobzjlfkpgymswm.supabase.co',
-            },
-            body: event.body,
-            redirect: 'manual', // Intercept redirects
-        });
+        const response = await fetch(url, fetchOptions);
 
         const headers = {};
         response.headers.forEach((value, name) => {
