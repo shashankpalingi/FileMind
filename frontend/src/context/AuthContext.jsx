@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
     };
 
     const signInWithGoogle = async () => {
-        // In production, we MUST use the proxied callback URL
+        console.log('Attempting Google Sign-In...');
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -56,7 +56,11 @@ export function AuthProvider({ children }) {
             },
         });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Google Sign-In Error:', error.message);
+            throw error;
+        }
+        console.log('Google Sign-In Data:', data);
         return data;
     };
 

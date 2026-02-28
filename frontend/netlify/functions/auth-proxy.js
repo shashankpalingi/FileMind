@@ -22,7 +22,9 @@ export const handler = async (event, context) => {
     }
 
     try {
+        console.log(`Proxying ${event.httpMethod} to: ${url}`);
         const response = await fetch(url, fetchOptions);
+        console.log(`Supabase responded with: ${response.status}`);
         const headers = {};
         const netlifyUrl = 'https://filemind08.netlify.app/supabase';
 
