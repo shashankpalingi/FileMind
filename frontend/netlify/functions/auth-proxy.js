@@ -3,13 +3,21 @@ export const handler = async (event, context) => {
     const path = event.path.replace('/supabase', '');
     const url = `${supabaseUrl}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
 
+    // Use multiValueHeaders for incoming request to catch all cookies
+    const requestHeaders = {};
+    Object.keys(event.multiValueHeaders || {}).forEach(key => {
+        requestHeaders[key.toLowerCase()] = event.multiValueHeaders[key].join('; ');
+    });
+
+    // Override host and handle origins
+    requestHeaders['host'] = 'usxsjzobzjlfkpgymswm.supabase.co';
+    if (requestHeaders['origin']) requestHeaders['origin'] = supabaseUrl;
+    if (requestHeaders['referer']) requestHeaders['referer'] = supabaseUrl;
+
     const fetchOptions = {
         method: event.httpMethod,
-        headers: {
-            ...event.headers,
-            host: 'usxsjzobzjlfkpgymswm.supabase.co',
-        },
-        redirect: 'manual', // Intercept redirects
+        headers: requestHeaders,
+        redirect: 'manual',
     };
 
     if (event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD' && event.body) {
@@ -18,10 +26,8 @@ export const handler = async (event, context) => {
 
     try {
         const response = await fetch(url, fetchOptions);
-
         const headers = {};
         const netlifyUrl = 'https://filemind08.netlify.app/supabase';
-        const netlifyDomain = 'filemind08.netlify.app';
 
         response.headers.forEach((value, name) => {
             const lowerName = name.toLowerCase();
@@ -34,12 +40,12 @@ export const handler = async (event, context) => {
                 headers[name] = newValue;
             } else if (lowerName === 'set-cookie') {
                 if (!headers['set-cookie']) headers['set-cookie'] = [];
-                // Strip Domain and Secure to make it work on Netlify's domain
-                let cookie = value.replace(/Domain=[^;]+;?/, '');
-                // Also remove Secure if testing on local, but on Netlify it's fine.
-                // However, we want the browser to accept it as a first-party cookie.
+                // CRITICAL: Strip Domain AND rewrite Path to / to ensure browser sends it back to /supabase
+                let cookie = value
+                    .replace(/Domain=[^;]+;?/, '')
+                    .replace(/Path=[^;]+;?/, 'Path=/');
                 headers['set-cookie'].push(cookie);
-            } else if (lowerName !== 'content-encoding' && lowerName !== 'content-length' && lowerName !== 'transfer-encoding') {
+            } else if (!['content-encoding', 'content-length', 'transfer-encoding'].includes(lowerName)) {
                 headers[name] = value;
             }
         });

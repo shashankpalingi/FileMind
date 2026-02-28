@@ -48,17 +48,11 @@ export function AuthProvider({ children }) {
     };
 
     const signInWithGoogle = async () => {
-        const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
-
         // In production, we MUST use the proxied callback URL
-        const callbackUrl = isProd
-            ? `${window.location.origin}/supabase/auth/v1/callback`
-            : `${window.location.origin}/dashboard`;
-
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: callbackUrl,
+                redirectTo: `${window.location.origin}/dashboard`,
             },
         });
 
