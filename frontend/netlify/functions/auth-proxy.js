@@ -21,36 +21,36 @@ export const handler = async (event, context) => {
 
         const headers = {};
         const netlifyUrl = 'https://filemind08.netlify.app/supabase';
+        const netlifyDomain = 'filemind08.netlify.app';
 
         response.headers.forEach((value, name) => {
             const lowerName = name.toLowerCase();
             if (lowerName === 'location') {
-                // We must replace both plain and encoded versions of the Supabase URL
                 let newValue = value;
-
-                // Plain replacement
                 newValue = newValue.split(supabaseUrl).join(netlifyUrl);
-
-                // Encoded replacement (very important for Google redirect_uri)
                 const encodedSupabase = encodeURIComponent(supabaseUrl);
                 const encodedNetlify = encodeURIComponent(netlifyUrl);
                 newValue = newValue.split(encodedSupabase).join(encodedNetlify);
-
                 headers[name] = newValue;
             } else if (lowerName === 'set-cookie') {
-                // Pass cookies through properly
                 if (!headers['set-cookie']) headers['set-cookie'] = [];
-                headers['set-cookie'].push(value);
-            } else {
+                // Strip Domain and Secure to make it work on Netlify's domain
+                let cookie = value.replace(/Domain=[^;]+;?/, '');
+                // Also remove Secure if testing on local, but on Netlify it's fine.
+                // However, we want the browser to accept it as a first-party cookie.
+                headers['set-cookie'].push(cookie);
+            } else if (lowerName !== 'content-encoding' && lowerName !== 'content-length' && lowerName !== 'transfer-encoding') {
                 headers[name] = value;
             }
         });
 
+        const responseText = await response.text();
+
         return {
             statusCode: response.status,
-            multiValueHeaders: headers['set-cookie'] ? { 'set-cookie': headers['set-cookie'] } : undefined,
+            multiValueHeaders: headers['set-cookie'] ? { 'set-cookie': headers['set-cookie'] } : {},
             headers: { ...headers, 'set-cookie': undefined },
-            body: await response.text(),
+            body: responseText,
         };
     } catch (error) {
         return {
