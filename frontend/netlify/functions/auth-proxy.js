@@ -1,6 +1,6 @@
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+import fetch from 'node-fetch';
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
     const supabaseUrl = 'https://usxsjzobzjlfkpgymswm.supabase.co';
     const path = event.path.replace('/supabase', '');
     const url = `${supabaseUrl}${path}${event.rawQuery ? '?' + event.rawQuery : ''}`;
