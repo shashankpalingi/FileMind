@@ -66,12 +66,21 @@ export function AuthProvider({ children }) {
         if (error) throw error;
 
         if (isProd && data?.url) {
-            // Rewrite the Supabase URL to use our Netlify proxy
-            const proxiedUrl = data.url.replace(
-                'https://usxsjzobzjlfkpgymswm.supabase.co',
-                window.location.origin + '/supabase'
-            );
-            window.location.href = proxiedUrl;
+            // DEEP REPLACEMENT:
+            // We must replace ALL occurrences of the Supabase URL.
+            // One for the authorize call, and one inside the 'redirect_uri' for Google.
+            const supabaseOrigin = 'https://usxsjzobzjlfkpgymswm.supabase.co';
+            const proxyOrigin = window.location.origin + '/supabase';
+
+            // Replace decoded version
+            let finalUrl = data.url.split(supabaseOrigin).join(proxyOrigin);
+
+            // Replace encoded version (just in case)
+            const encodedSupabase = encodeURIComponent(supabaseOrigin);
+            const encodedProxy = encodeURIComponent(proxyOrigin);
+            finalUrl = finalUrl.split(encodedSupabase).join(encodedProxy);
+
+            window.location.href = finalUrl;
         }
 
         return data;
