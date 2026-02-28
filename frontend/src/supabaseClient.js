@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const isProd = import.meta.env.PROD;
-const supabaseUrl = isProd ? '/supabase' : import.meta.env.VITE_SUPABASE_URL;
+const supabaseUrl = isProd ? `${window.location.origin}/supabase` : import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
