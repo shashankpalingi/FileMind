@@ -26,40 +26,40 @@ export const handler = async (event, context) => {
         const headers = {};
         const netlifyUrl = 'https://filemind08.netlify.app/supabase';
 
-        // 2. Prepare Response Headers
+        // Extract and rewrite headers
         response.headers.forEach((value, name) => {
             const lowerName = name.toLowerCase();
-
             if (lowerName === 'location') {
-                // Rewrite redirects (including the critical Google Redirect URI)
                 let newValue = value;
+                // Rewrite both plain and encoded URLs
                 newValue = newValue.split(supabaseUrl).join(netlifyUrl);
                 const encodedSupabase = encodeURIComponent(supabaseUrl);
                 const encodedNetlify = encodeURIComponent(netlifyUrl);
                 newValue = newValue.split(encodedSupabase).join(encodedNetlify);
                 headers[name] = newValue;
-            } else if (lowerName !== 'set-cookie' && !['content-encoding', 'content-length', 'transfer-encoding'].includes(lowerName)) {
+            } else if (!['set-cookie', 'content-encoding', 'content-length', 'transfer-encoding'].includes(lowerName)) {
                 headers[name] = value;
             }
         });
 
-        // 3. Handle Set-Cookie Carefully
-        // We MUST use the native getSetCookie if available, or fall back to manual extraction
+        // HANDLE COOKIES PROPERLY (Multi-value)
+        // This is the key for session persistence
         let cookies = [];
         if (response.headers.getSetCookie) {
             cookies = response.headers.getSetCookie();
         } else if (response.headers.raw) {
-            // Some older Node environments in serverless
             cookies = response.headers.raw()['set-cookie'] || [];
         }
 
         const processedCookies = cookies.map(c => {
-            return c.replace(/Domain=[^;]+;?/i, '').replace(/Path=[^;]+;?/i, 'Path=/');
+            // Rewrite domain and path to make them first-party for Netlify
+            return c
+                .replace(/Domain=[^;]+;?/i, '')
+                .replace(/Path=[^;]+;?/i, 'Path=/');
         });
 
         const responseText = await response.text();
 
-        // 4. Return to Netlify
         return {
             statusCode: response.status,
             multiValueHeaders: processedCookies.length > 0 ? { 'set-cookie': processedCookies } : {},
