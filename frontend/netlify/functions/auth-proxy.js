@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export const handler = async (event, context) => {
     const supabaseUrl = 'https://usxsjzobzjlfkpgymswm.supabase.co';
     const path = event.path.replace('/supabase', '');
