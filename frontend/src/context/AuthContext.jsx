@@ -48,7 +48,8 @@ export function AuthProvider({ children }) {
     };
 
     const signInWithGoogle = async () => {
-        const isProd = import.meta.env.PROD;
+        const isProd = !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1');
+
         // In production, we MUST use the proxied callback URL to keep the same domain
         const callbackUrl = isProd
             ? `${window.location.origin}/supabase/auth/v1/callback`
@@ -65,6 +66,7 @@ export function AuthProvider({ children }) {
         if (error) throw error;
 
         if (isProd && data?.url) {
+            // Rewrite the Supabase URL to use our Netlify proxy
             const proxiedUrl = data.url.replace(
                 'https://usxsjzobzjlfkpgymswm.supabase.co',
                 window.location.origin + '/supabase'
