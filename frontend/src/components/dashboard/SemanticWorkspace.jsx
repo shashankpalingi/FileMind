@@ -6,7 +6,9 @@ import ChatAssistant from './ChatAssistant';
 import Sidebar from './Sidebar';
 import DendrogramChart from '../ui/dendrogram';
 import ThemeToggle from './ThemeToggle';
+import Loader from '../ui/Loader';
 import { useAuth } from '../../context/AuthContext';
+
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import './SemanticWorkspace.css';
@@ -44,8 +46,11 @@ const SemanticWorkspace = () => {
   const filesRef = useRef('[]');
   const statusRef = useRef('null');
 
+  const [loading, setLoading] = useState(false);
+
   // Fetch files list — only update state if data changed
-  const fetchFiles = useCallback(async () => {
+  const fetchFiles = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
       const { data } = await api.get('/files');
       const json = JSON.stringify(data);
@@ -55,6 +60,8 @@ const SemanticWorkspace = () => {
       }
     } catch (error) {
       console.error('Failed to fetch files:', error);
+    } finally {
+      if (showLoader) setLoading(false);
     }
   }, []);
 
@@ -73,16 +80,17 @@ const SemanticWorkspace = () => {
   }, []);
 
   useEffect(() => {
-    fetchFiles();
+    // Show loader on initial load
+    fetchFiles(true);
     fetchStatus();
 
-    // Poll status + files every 5 seconds
+    // Poll status + files every 5 seconds (no loader for background polling)
     const interval = setInterval(() => {
       fetchStatus();
-      fetchFiles();
+      fetchFiles(false);
     }, 5000);
     return () => clearInterval(interval);
-  }, [refreshTrigger]);
+  }, [refreshTrigger, fetchFiles, fetchStatus]);
 
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -90,7 +98,9 @@ const SemanticWorkspace = () => {
 
   return (
     <div className="semantic-workspace">
+      {loading && <Loader />}
       {/* Top Navigation Bar */}
+
       <nav className="top-nav">
         <div className="nav-content">
           <div className="nav-left">
