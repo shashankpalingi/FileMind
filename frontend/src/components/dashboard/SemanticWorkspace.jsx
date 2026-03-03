@@ -46,11 +46,13 @@ const SemanticWorkspace = () => {
   const filesRef = useRef('[]');
   const statusRef = useRef('null');
 
-  const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const loading = dataLoading || uploadLoading;
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true);
+    if (showLoader) setDataLoading(true);
     try {
       const { data } = await api.get('/files');
       const json = JSON.stringify(data);
@@ -61,7 +63,7 @@ const SemanticWorkspace = () => {
     } catch (error) {
       console.error('Failed to fetch files:', error);
     } finally {
-      if (showLoader) setLoading(false);
+      if (showLoader) setDataLoading(false);
     }
   }, []);
 
@@ -92,15 +94,18 @@ const SemanticWorkspace = () => {
     return () => clearInterval(interval);
   }, [refreshTrigger, fetchFiles, fetchStatus]);
 
+  const handleUploadStart = () => setUploadLoading(true);
+  const handleUploadEnd = () => setUploadLoading(false);
+
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
 
   return (
     <div className="semantic-workspace">
       {loading && <Loader />}
       {/* Top Navigation Bar */}
-
       <nav className="top-nav">
         <div className="nav-content">
           <div className="nav-left">
@@ -158,9 +163,14 @@ const SemanticWorkspace = () => {
 
         {/* Center - Knowledge Workspace */}
         <main className="center-panel">
-          <FileUpload onUploadSuccess={handleUploadSuccess} />
+          <FileUpload
+            onUploadSuccess={handleUploadSuccess}
+            onUploadStart={handleUploadStart}
+            onUploadEnd={handleUploadEnd}
+          />
           <DendrogramChart files={files} />
         </main>
+
 
         {/* Right Panel - AI Assistant */}
         <aside className="right-panel">

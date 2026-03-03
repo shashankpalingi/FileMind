@@ -3,7 +3,7 @@ import { Upload, CheckCircle, XCircle } from 'lucide-react';
 import api from '../../api';
 import './FileUpload.css';
 
-const FileUpload = ({ onUploadSuccess }) => {
+const FileUpload = ({ onUploadSuccess, onUploadStart, onUploadEnd }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -43,9 +43,11 @@ const FileUpload = ({ onUploadSuccess }) => {
             return;
         }
 
+        if (onUploadStart) onUploadStart();
         for (const file of validFiles) {
             await uploadFile(file);
         }
+        if (onUploadEnd) onUploadEnd();
     };
 
     const uploadFile = async (file) => {
@@ -134,8 +136,6 @@ const FileUpload = ({ onUploadSuccess }) => {
 
                 {uploading && (
                     <div className="upload-progress">
-                        <div className="spinner" />
-                        <p>Processing...</p>
                         <div className="progress-bar">
                             <div
                                 className="progress-fill"
@@ -144,6 +144,7 @@ const FileUpload = ({ onUploadSuccess }) => {
                         </div>
                     </div>
                 )}
+
 
                 {uploadStatus && (
                     <div className={`upload-status ${uploadStatus.type}`}>
