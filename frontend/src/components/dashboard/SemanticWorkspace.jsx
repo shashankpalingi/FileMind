@@ -48,8 +48,9 @@ const SemanticWorkspace = () => {
 
   const [dataLoading, setDataLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const loading = dataLoading || uploadLoading || !!systemStatus?.is_processing;
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
+  const loading = dataLoading || uploadLoading || isTransitioning || !!systemStatus?.is_processing;
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
@@ -67,6 +68,7 @@ const SemanticWorkspace = () => {
       if (showLoader) setDataLoading(false);
     }
   }, []);
+
 
   // Fetch system status — only update state if data changed
   const fetchStatus = useCallback(async () => {
@@ -95,12 +97,35 @@ const SemanticWorkspace = () => {
     return () => clearInterval(interval);
   }, [refreshTrigger, fetchFiles, fetchStatus]);
 
-  const handleUploadStart = () => setUploadLoading(true);
-  const handleUploadEnd = () => setUploadLoading(false);
+  const handleUploadStart = () => {
+    setUploadLoading(true);
+    setIsTransitioning(false);
+  };
+
+  const handleUploadEnd = () => {
+    setUploadLoading(false);
+    // Start transition period to wait for status poll to catch the 'is_processing' state
+    setIsTransitioning(true);
+  };
+
+  // Clear transition once we actually see processing or after a safety timeout
+  useEffect(() => {
+    if (systemStatus?.is_processing) {
+      setIsTransitioning(false);
+    }
+  }, [systemStatus?.is_processing]);
+
+  useEffect(() => {
+    if (isTransitioning) {
+      const timer = setTimeout(() => setIsTransitioning(false), 3000); // 3s safety timeout
+      return () => clearTimeout(timer);
+    }
+  }, [isTransitioning]);
 
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
 
 
   return (
