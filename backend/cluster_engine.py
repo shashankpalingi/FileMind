@@ -256,19 +256,7 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
         storage[cid]["stability_score"] = round(_compute_stability(storage[cid]), 4)
         storage[cid]["internal_cohesion"] = storage[cid]["stability_score"]
 
-        # Rename the cluster dynamically — only if it's small or naming isn't skipped
-        if not skip_naming and len(storage[cid]["files"]) <= 5:
-            try:
-                sample_dict = {
-                    f_name: storage[cid]["files"][f_name][0]["text"]
-                    for f_name in storage[cid].get("files", {})
-                    if storage[cid]["files"][f_name]
-                }
-                new_label = generate_cluster_label(sample_dict)
-                if new_label and not new_label.startswith("Refining"):
-                    storage[cid]["label"] = new_label
-            except Exception as e:
-                print(f"Error renaming cluster: {e}")
+        # Skip renaming on join — only name on cluster creation for speed
 
 
         print(f"CLUSTER: {file_name} → cluster {cid} ({storage[cid].get('label', '?')}) [conf={confidence:.2f}]")
@@ -308,7 +296,7 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
         }
         print(f"CLUSTER: Bridge file: {file_name} spans '{storage.get(best_cid, {}).get('label')}' ↔ '{storage.get(second_cid, {}).get('label')}'")
 
-    save_storage(storage, user_id)
+    save_storage(storage, user_id, skip_sync=True)  # Skip cloud sync, merge will do final save
 
     # ── AUTO-MERGE after every add ── keeps clusters consolidated
     _merge_similar_clusters(user_id)
@@ -463,13 +451,12 @@ def _merge_similar_clusters(user_id):
                 storage[a]["stability_score"] = round(post_stability, 4)
                 storage[a]["internal_cohesion"] = round(post_stability, 4)
 
-                file_texts = _get_file_texts(storage[a])
-                label = generate_cluster_label(file_texts)
-                if label and not label.startswith("Refining"):
-                    storage[a]["label"] = label
+                # Keep primary cluster's label (skip LLM call for speed)
+                # Naming is refreshed during explicit recluster
 
                 del storage[b]
                 merged = True
                 break
 
-    save_storage(storage, user_id)
+    save_storage(storage, user_id)  # Final save with cloud sync
+

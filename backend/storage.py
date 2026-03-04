@@ -56,7 +56,7 @@ def load_storage(user_id):
             return {}
 
 
-def save_storage(data, user_id):
+def save_storage(data, user_id, skip_sync=False):
     lock = _get_lock(user_id)
     with lock:
         storage_file = get_user_storage_path(user_id)
@@ -74,18 +74,18 @@ def save_storage(data, user_id):
                 json.dump(data, f, indent=2)
             os.replace(tmp_file, storage_file)
             
-            # 3. Push to Supabase (Cloud Sync)
-            # Use a hidden folder '.system' to avoid cluttering their main view
-            try:
-                remote_path = f"{user_id}/.system/metadata.json"
-                supabase_admin.storage.from_(STORAGE_BUCKET).upload(
-                    path=remote_path,
-                    file=storage_file,
-                    file_options={"upsert": "true"}
-                )
-                print(f"STORAGE: Synced {storage_file} to cloud state.")
-            except Exception as e:
-                print(f"STORAGE: Sync-push error: {e}")
+            # Only sync to cloud when not skipped (final saves only)
+            if not skip_sync:
+                try:
+                    remote_path = f"{user_id}/.system/metadata.json"
+                    supabase_admin.storage.from_(STORAGE_BUCKET).upload(
+                        path=remote_path,
+                        file=storage_file,
+                        file_options={"upsert": "true"}
+                    )
+                    print(f"STORAGE: Synced {storage_file} to cloud state.")
+                except Exception as e:
+                    print(f"STORAGE: Sync-push error: {e}")
 
         except Exception as e:
             print(f"STORAGE: Write error for {storage_file}: {e}")
@@ -93,3 +93,4 @@ def save_storage(data, user_id):
             bak = storage_file + ".bak"
             if os.path.exists(bak) and not os.path.exists(storage_file):
                 os.replace(bak, storage_file)
+
