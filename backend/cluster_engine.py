@@ -256,8 +256,21 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
         storage[cid]["stability_score"] = round(_compute_stability(storage[cid]), 4)
         storage[cid]["internal_cohesion"] = storage[cid]["stability_score"]
 
-        # Skip renaming on join — only name on cluster creation for speed
-
+        # Smart renaming: only rename at size thresholds (2, 4, 8) to stay accurate without slowing every upload
+        cluster_size = len(storage[cid]["files"])
+        if not skip_naming and cluster_size in (2, 4, 8):
+            try:
+                sample_dict = {
+                    f_name: storage[cid]["files"][f_name][0]["text"]
+                    for f_name in storage[cid].get("files", {})
+                    if storage[cid]["files"][f_name]
+                }
+                new_label = generate_cluster_label(sample_dict)
+                if new_label and not new_label.startswith("Refining"):
+                    storage[cid]["label"] = new_label
+                    print(f"CLUSTER: Smart rename → {new_label} (triggered at size {cluster_size})")
+            except Exception as e:
+                print(f"Error renaming cluster: {e}")
 
         print(f"CLUSTER: {file_name} → cluster {cid} ({storage[cid].get('label', '?')}) [conf={confidence:.2f}]")
     else:
