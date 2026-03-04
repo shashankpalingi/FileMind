@@ -48,9 +48,8 @@ const SemanticWorkspace = () => {
 
   const [dataLoading, setDataLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const loading = dataLoading || uploadLoading || isTransitioning || !!systemStatus?.is_processing;
+  const loading = dataLoading || uploadLoading;
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
@@ -69,7 +68,6 @@ const SemanticWorkspace = () => {
     }
   }, []);
 
-
   // Fetch system status — only update state if data changed
   const fetchStatus = useCallback(async () => {
     try {
@@ -79,8 +77,10 @@ const SemanticWorkspace = () => {
         statusRef.current = json;
         setSystemStatus(data);
       }
+      return data;
     } catch (error) {
       console.error('Failed to fetch status:', error);
+      return null;
     }
   }, []);
 
@@ -97,42 +97,27 @@ const SemanticWorkspace = () => {
     return () => clearInterval(interval);
   }, [refreshTrigger, fetchFiles, fetchStatus]);
 
-  // Fast polling during processing to dismiss loader quickly
+  // When uploadLoading is true, poll rapidly until backend says processing is done
   useEffect(() => {
-    if (isTransitioning || systemStatus?.is_processing) {
-      const fastPoll = setInterval(() => {
-        fetchStatus();
-        fetchFiles(false);
-      }, 2000);
-      return () => clearInterval(fastPoll);
-    }
-  }, [isTransitioning, systemStatus?.is_processing, fetchStatus, fetchFiles]);
+    if (!uploadLoading) return;
 
+    const poll = setInterval(async () => {
+      const status = await fetchStatus();
+      await fetchFiles(false);
+      // Dismiss loader the INSTANT backend reports done
+      if (status && !status.is_processing) {
+        setUploadLoading(false);
+      }
+    }, 1500);
 
-  const handleUploadStart = () => {
-    setUploadLoading(true);
-    setIsTransitioning(false);
-  };
+    return () => clearInterval(poll);
+  }, [uploadLoading, fetchStatus, fetchFiles]);
 
+  const handleUploadStart = () => setUploadLoading(true);
   const handleUploadEnd = () => {
-    setUploadLoading(false);
-    // Start transition period to wait for status poll to catch the 'is_processing' state
-    setIsTransitioning(true);
+    // Keep uploadLoading = true — don't clear it here.
+    // The rapid poll above will clear it once backend confirms processing is done.
   };
-
-  // Clear transition once we actually see processing or after a safety timeout
-  useEffect(() => {
-    if (systemStatus?.is_processing) {
-      setIsTransitioning(false);
-    }
-  }, [systemStatus?.is_processing]);
-
-  useEffect(() => {
-    if (isTransitioning) {
-      const timer = setTimeout(() => setIsTransitioning(false), 3000); // 3s safety timeout
-      return () => clearTimeout(timer);
-    }
-  }, [isTransitioning]);
 
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
