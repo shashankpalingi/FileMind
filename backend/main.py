@@ -81,6 +81,7 @@ app.add_middleware(
 )
 
 connected_clients = []
+processing_users = set()
 
 # -----------------------------
 # FILE PROCESSOR (temp file → embed → cluster → delete)
@@ -93,6 +94,9 @@ def process_file_content(file_content: bytes, filename: str, user_id: str):
     """
     ext = os.path.splitext(filename)[1].lower()
     tmp_path = None
+    
+    # Track that this user has an active processing task
+    processing_users.add(user_id)
 
     try:
         # Save to temp for text extraction
@@ -135,6 +139,11 @@ def process_file_content(file_content: bytes, filename: str, user_id: str):
                 os.unlink(tmp_path)
             except OSError:
                 pass
+        
+        # Mark user as no longer processing
+        if user_id in processing_users:
+            processing_users.remove(user_id)
+
 
 # -----------------------------
 # AUTH ENDPOINTS (public)
@@ -196,8 +205,10 @@ def system_status(user_id: str = Depends(get_current_user)):
     return {
         "status": "running",
         "clusters": len(storage),
-        "files": sum(len(c["files"]) for c in storage.values())
+        "files": sum(len(c["files"]) for c in storage.values()),
+        "is_processing": user_id in processing_users
     }
+
 
 # -----------------------------
 # CLUSTER ENDPOINTS

@@ -48,7 +48,8 @@ const SemanticWorkspace = () => {
 
   const [dataLoading, setDataLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const loading = dataLoading || uploadLoading;
+  const loading = dataLoading || uploadLoading || !!systemStatus?.is_processing;
+
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
