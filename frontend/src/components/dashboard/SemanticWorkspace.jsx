@@ -97,6 +97,18 @@ const SemanticWorkspace = () => {
     return () => clearInterval(interval);
   }, [refreshTrigger, fetchFiles, fetchStatus]);
 
+  // Fast polling during processing to dismiss loader quickly
+  useEffect(() => {
+    if (isTransitioning || systemStatus?.is_processing) {
+      const fastPoll = setInterval(() => {
+        fetchStatus();
+        fetchFiles(false);
+      }, 2000);
+      return () => clearInterval(fastPoll);
+    }
+  }, [isTransitioning, systemStatus?.is_processing, fetchStatus, fetchFiles]);
+
+
   const handleUploadStart = () => {
     setUploadLoading(true);
     setIsTransitioning(false);

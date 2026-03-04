@@ -23,7 +23,7 @@
     width: 800px;
     height: 600px;
     overflow: hidden;
-    --time: 22s;
+    --time: 8s;
 }
 
 .frame *,
