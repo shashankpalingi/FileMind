@@ -256,18 +256,20 @@ def add_file(user_id, file_name, chunks_data, metadata, skip_naming=False):
         storage[cid]["stability_score"] = round(_compute_stability(storage[cid]), 4)
         storage[cid]["internal_cohesion"] = storage[cid]["stability_score"]
 
-        # Rename the cluster dynamically as new files join
-        try:
-            sample_dict = {
-                f_name: storage[cid]["files"][f_name][0]["text"]
-                for f_name in storage[cid].get("files", {})
-                if storage[cid]["files"][f_name]
-            }
-            new_label = generate_cluster_label(sample_dict)
-            if new_label and not new_label.startswith("Refining"):
-                storage[cid]["label"] = new_label
-        except Exception as e:
-            print(f"Error renaming cluster: {e}")
+        # Rename the cluster dynamically — only if it's small or naming isn't skipped
+        if not skip_naming and len(storage[cid]["files"]) <= 5:
+            try:
+                sample_dict = {
+                    f_name: storage[cid]["files"][f_name][0]["text"]
+                    for f_name in storage[cid].get("files", {})
+                    if storage[cid]["files"][f_name]
+                }
+                new_label = generate_cluster_label(sample_dict)
+                if new_label and not new_label.startswith("Refining"):
+                    storage[cid]["label"] = new_label
+            except Exception as e:
+                print(f"Error renaming cluster: {e}")
+
 
         print(f"CLUSTER: {file_name} → cluster {cid} ({storage[cid].get('label', '?')}) [conf={confidence:.2f}]")
     else:
@@ -400,7 +402,7 @@ def recluster_all(user_id):
                 print(f"RECLUSTER: Cluster {cid} -> {label}")
             else:
                 cdata["label"] = f"Cluster_{cid}"
-            time.sleep(3)
+
 
     # Final stability
     for cid in _cluster_keys(storage):
