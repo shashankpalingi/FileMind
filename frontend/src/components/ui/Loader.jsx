@@ -1,30 +1,33 @@
 import React from 'react';
 import './Loader.css';
 
-const Loader = ({ message = "Processing your files..." }) => {
+const Loader = ({ message }) => {
     return (
         <div className="loader-overlay">
             <div className="loader-container">
-                <div className="frame">
-                    <div className="scene1">
-                        <div className="boy">
-                            <div className="boy__head">
-                                <div className="boy__hair" />
-                                <div className="boy__eyes" />
-                                <div className="boy__mouth" />
-                                <div className="boy__cheeks" />
-                            </div>
-                            <div className="noodle" />
-                            <div className="boy__leftArm">
-                                <div className="chopsticks" />
-                            </div>
+                <div className="spooky-house">
+                    <div className="content-circle">
+                        <div className="house">
+                            <div className="porch" />
+                            <div className="first-floor" />
+                            <div className="second-floor" />
+                            <div className="roof" />
+                            <div className="door" />
+                            <div className="small-windows" />
+                            <div className="big-window" />
+                            <div className="frames" />
                         </div>
-                        <div className="plate" />
-                        <div className="rightArm" />
+                        <div className="moon" />
+                        <div className="rain">
+                            <div className="dropOne" />
+                            <div className="dropTwo" />
+                            <div className="dropThree" />
+                            <div className="dropFour" />
+                            <div className="dropFive" />
+                        </div>
                     </div>
-                    <div className="scene2">5 minutes later</div>
                 </div>
-                {message && <div className="loader-text">{message}</div>}
+                {message && <p className="loader-message">{message}</p>}
             </div>
         </div>
     );
