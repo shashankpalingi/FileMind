@@ -49,7 +49,7 @@ const SemanticWorkspace = () => {
   const [dataLoading, setDataLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
 
-  const loading = dataLoading || uploadLoading;
+  const loading = dataLoading || uploadLoading || !!systemStatus?.is_processing;
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
@@ -98,20 +98,30 @@ const SemanticWorkspace = () => {
   }, [refreshTrigger, fetchFiles, fetchStatus]);
 
   // When uploadLoading is true, poll rapidly until backend says processing is done
+  // Wait 3s before first check to give backend time to start the processing thread
   useEffect(() => {
     if (!uploadLoading) return;
 
-    const poll = setInterval(async () => {
-      const status = await fetchStatus();
-      await fetchFiles(false);
-      // Dismiss loader the INSTANT backend reports done
-      if (status && !status.is_processing) {
-        setUploadLoading(false);
-      }
-    }, 1500);
+    const timeout = setTimeout(() => {
+      const poll = setInterval(async () => {
+        const status = await fetchStatus();
+        await fetchFiles(false);
+        if (status && !status.is_processing) {
+          setUploadLoading(false);
+        }
+      }, 1500);
 
-    return () => clearInterval(poll);
+      // Store poll ID so we can clear it on cleanup
+      pollRef.current = poll;
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeout);
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [uploadLoading, fetchStatus, fetchFiles]);
+
+  const pollRef = useRef(null);
 
   const handleUploadStart = () => setUploadLoading(true);
   const handleUploadEnd = () => {
@@ -122,6 +132,7 @@ const SemanticWorkspace = () => {
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
 
 
 
