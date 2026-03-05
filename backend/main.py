@@ -293,6 +293,9 @@ async def upload_file(file: UploadFile = File(...), user_id: str = Depends(get_c
         )
         print(f"UPLOAD: Stored {filename} in Supabase")
 
+        # Mark processing BEFORE starting thread so first status poll sees it
+        processing_users.add(user_id)
+
         # Process in background thread (temp file, no permanent local storage)
         thread = threading.Thread(
             target=process_file_content,
