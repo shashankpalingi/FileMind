@@ -109,10 +109,10 @@ def process_file_content(file_content: bytes, filename: str, user_id: str):
             print(f"PROCESS: Skipping empty/unreadable file: {filename}")
             return
 
-        chunks = chunk_text(content, chunk_size=500, overlap=100)
-        if len(chunks) > 20:
-            print(f"PROCESS: Truncating {filename} to 20 chunks")
-            chunks = chunks[:20]
+        chunks = chunk_text(content, chunk_size=1000, overlap=200)
+        if len(chunks) > 100:
+            print(f"PROCESS: Truncating {filename} to 100 chunks")
+            chunks = chunks[:100]
 
         if not chunks:
             return
@@ -461,14 +461,14 @@ def rag_answer(request: SearchRequest, user_id: str = Depends(get_current_user))
                     })
 
         all_chunks.sort(key=lambda x: x["similarity"], reverse=True)
-        top_chunks = all_chunks[:10]
+        top_chunks = all_chunks[:20]
 
         if not top_chunks:
             return {"answer": "No relevant documents found.", "sources": [], "confidence": 0.0}
 
-        confidence = sum(c["similarity"] for c in top_chunks[:3]) / min(3, len(top_chunks))
+        confidence = sum(c["similarity"] for c in top_chunks[:5]) / min(5, len(top_chunks))
 
-        MAX_CONTEXT_CHARS = 4000
+        MAX_CONTEXT_CHARS = 8000
         context_parts = []
         chars_used = 0
         sources = set()

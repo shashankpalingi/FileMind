@@ -1,20 +1,57 @@
 import fitz  # PyMuPDF
 import os
 
-def chunk_text(text, chunk_size=500, overlap=100):
+def chunk_text(text, chunk_size=1000, overlap=200):
     """
-    Splits text into overlapping chunks.
+    Splits text into chunks, attempting to keep sentences and paragraphs together.
+    Uses character-based heuristic for semantic boundaries.
     """
     if not text:
         return []
     
     chunks = []
     start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += (chunk_size - overlap)
+    text_len = len(text)
+    
+    while start < text_len:
+        # Initial end point
+        end = min(start + chunk_size, text_len)
         
+        # If we're not at the very end, try to find a better breakpoint
+        if end < text_len:
+            # Look for paragraph breaks, then sentence breaks, then space
+            # Search backwards from the end up to the overlap amount
+            search_area = text[max(start, end - 200):end]
+            
+            # 1. Paragraph (double newline)
+            p_break = search_area.rfind("\n\n")
+            if p_break != -1:
+                end = max(start, end - 200) + p_break + 2
+            else:
+                # 2. Sentence or Line
+                last_dot = search_area.rfind(". ")
+                if last_dot != -1:
+                    end = max(start, end - 200) + last_dot + 2
+                else:
+                    last_newline = search_area.rfind("\n")
+                    if last_newline != -1:
+                        end = max(start, end - 200) + last_newline + 1
+                    else:
+                        # 3. Last word
+                        last_space = search_area.rfind(" ")
+                        if last_space != -1:
+                            end = max(start, end - 200) + last_space + 1
+        
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+            
+        # Move forward, minus the overlap/residual
+        start = end - overlap if end < text_len else text_len
+        # Ensure we actually made progress
+        if start >= end:
+            start = end
+            
     return chunks
 
 def extract_metadata(file_path):
@@ -85,7 +122,8 @@ def extract_pdf(path):
         doc = fitz.open(path)
         text = ""
         for page in doc:
-            text += page.get_text()
+            # sort=True helps with multi-column PDFs often found in reports/records
+            text += page.get_text(sort=True) + "\n\n"
         doc.close()
         return text
     except Exception as e:
