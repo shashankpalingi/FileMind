@@ -310,14 +310,9 @@ async def upload_file(file: UploadFile = File(...), user_id: str = Depends(get_c
 # DELETE ENDPOINT
 # -----------------------------
 
-@app.delete("/files/{filename}")
-async def delete_file(filename: str, user_id: str = Depends(get_current_user)):
-    """
-    Delete flow:
-    1. Remove from Supabase Storage
-    2. Remove from cluster storage (JSON)
-    No local disk operations.
-    """
+def process_delete(filename: str, user_id: str):
+    """Background worker for file deletion + re-clustering."""
+    processing_users.add(user_id)
     try:
         # Remove from Supabase Storage
         storage_path = f"{user_id}/{filename}"
@@ -327,11 +322,38 @@ async def delete_file(filename: str, user_id: str = Depends(get_current_user)):
         except Exception as e:
             print(f"DELETE: Supabase warning: {e}")
 
-        # Remove from cluster storage
+        # Remove from cluster storage (triggers re-clustering)
         remove_file(user_id, filename)
+        print(f"DELETE: Done — {filename} (user: {user_id})")
+    except Exception as e:
+        import traceback
+        print(f"DELETE ERROR ({filename}): {e}")
+        traceback.print_exc()
+    finally:
+        processing_users.discard(user_id)
+
+
+@app.delete("/files/{filename}")
+async def delete_file(filename: str, user_id: str = Depends(get_current_user)):
+    """
+    Delete flow:
+    1. Mark user as processing immediately
+    2. Run delete + recluster in background thread
+    """
+    try:
+        # Mark processing BEFORE returning so first status poll sees it
+        processing_users.add(user_id)
+
+        thread = threading.Thread(
+            target=process_delete,
+            args=(filename, user_id),
+            daemon=True
+        )
+        thread.start()
 
         return {"status": "success", "filename": filename}
     except Exception as e:
+        processing_users.discard(user_id)
         print(f"DELETE ERROR: {e}")
         return {"error": str(e)}
 

@@ -48,8 +48,9 @@ const SemanticWorkspace = () => {
 
   const [dataLoading, setDataLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const loading = dataLoading || uploadLoading || !!systemStatus?.is_processing;
+  const loading = dataLoading || uploadLoading || deleteLoading;
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
@@ -122,6 +123,26 @@ const SemanticWorkspace = () => {
   }, [uploadLoading, fetchStatus, fetchFiles]);
 
   const pollRef = useRef(null);
+  const deletePollRef = useRef(null);
+
+  // When deleteLoading is true, poll rapidly until backend says processing is done
+  useEffect(() => {
+    if (!deleteLoading) return;
+
+    const poll = setInterval(async () => {
+      const status = await fetchStatus();
+      await fetchFiles(false);
+      if (status && !status.is_processing) {
+        setDeleteLoading(false);
+      }
+    }, 1000);
+
+    deletePollRef.current = poll;
+
+    return () => {
+      if (deletePollRef.current) clearInterval(deletePollRef.current);
+    };
+  }, [deleteLoading, fetchStatus, fetchFiles]);
 
   const handleUploadStart = () => setUploadLoading(true);
   const handleUploadEnd = () => {
@@ -132,6 +153,8 @@ const SemanticWorkspace = () => {
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  const handleDeleteStart = () => setDeleteLoading(true);
 
 
 
@@ -192,7 +215,7 @@ const SemanticWorkspace = () => {
       <div className="main-content">
         {/* Left Sidebar - File Tree & Status */}
         <aside className="left-panel">
-          <Sidebar files={files} status={systemStatus} onRefresh={handleUploadSuccess} />
+          <Sidebar files={files} status={systemStatus} onRefresh={handleUploadSuccess} onDeleteStart={handleDeleteStart} />
         </aside>
 
         {/* Center - Knowledge Workspace */}

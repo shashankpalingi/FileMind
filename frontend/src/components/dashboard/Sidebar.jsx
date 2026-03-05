@@ -4,12 +4,13 @@ import { FilesystemItem } from '../ui/filesystem-item';
 import api from '../../api';
 import './Sidebar.css';
 
-const Sidebar = ({ files, status, onRefresh }) => {
+const Sidebar = ({ files, status, onRefresh, onDeleteStart }) => {
     const isOnline = status?.status === 'running' || status?.status === 'online';
 
 
 
     const handleDelete = useCallback(async (fileName) => {
+        if (onDeleteStart) onDeleteStart();
         try {
             const { data } = await api.delete(`/files/${encodeURIComponent(fileName)}`);
             if (data.error) {
@@ -21,7 +22,7 @@ const Sidebar = ({ files, status, onRefresh }) => {
         } catch (error) {
             console.error('Delete error:', error);
         }
-    }, [onRefresh]);
+    }, [onRefresh, onDeleteStart]);
 
     const handleUpdate = useCallback(async (fileName, newFile) => {
         try {
