@@ -193,21 +193,24 @@ export default function LandingPage() {
         <div className="landing-page min-h-screen overflow-x-hidden">
             {/* Nav */}
             <nav className="sketch-nav" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50 }}>
-                <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="1.8">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
+                        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" stroke="currentColor" strokeWidth="1.8">
                             <path d="M4 4h6l2 2h6v12H4V4z" strokeLinecap="round" strokeLinejoin="round" />
                             <circle cx="12" cy="13" r="2.5" />
                             <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
                         </svg>
-                        <span className="font-display text-xl" style={{ fontFamily: "'Caveat', cursive", fontWeight: 700 }}>FileMind</span>
+                        <span className="font-display text-lg sm:text-xl" style={{ fontFamily: "'Caveat', cursive", fontWeight: 700 }}>FileMind</span>
                     </div>
                     <div className="hidden md:flex items-center gap-8 text-sm font-handwritten" style={{ color: 'hsl(220 9% 46%)', fontSize: '1rem' }}>
                         <a href="#how-it-works" className="hover:opacity-70 transition-opacity">How it works</a>
                         <a href="#features" className="hover:opacity-70 transition-opacity">Features</a>
                     </div>
-                    <Link to="/dashboard" className="sketch-button" style={{ padding: '8px 20px', fontSize: '1rem' }}>
+                    <Link to="/dashboard" className="sketch-button desktop-only-btn shrink-0" style={{ padding: '8px 20px', fontSize: '1rem', whiteSpace: 'nowrap' }}>
                         Get early access →
+                    </Link>
+                    <Link to="/dashboard" className="sketch-button mobile-only-btn shrink-0" style={{ padding: '6px 14px', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        Access →
                     </Link>
                 </div>
             </nav>
@@ -239,7 +242,7 @@ export default function LandingPage() {
                         <p className="text-lg leading-relaxed mb-12 max-w-md" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Architects Daughter', sans-serif" }}>
                             Drop your documents and walk away. FileMind reads every word, maps
                             meaning into vectors, and clusters related files — automatically.
-                            Then ask anything in plain English.
+                            Then ask anything in English.
                         </p>
 
                         <div className="flex flex-wrap gap-4">
