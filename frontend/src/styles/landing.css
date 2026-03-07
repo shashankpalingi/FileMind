@@ -51,7 +51,7 @@
 
 /* Handwritten annotation style */
 .landing-page .font-handwritten {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Kalam', cursive;
     font-weight: 600;
 }
 
@@ -161,7 +161,7 @@
 /* ── Sketch-style step numbers ──────────────────────────── */
 
 .landing-page .step-number {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Kalam', cursive;
     font-weight: 700;
     font-size: 5rem;
     line-height: 1;
@@ -184,7 +184,7 @@
 /* ── Floating annotation badges ─────────────────────────── */
 
 .landing-page .annotation-badge {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Kalam', cursive;
     font-size: 0.875rem;
     font-weight: 600;
     color: hsl(var(--lp-ink-light));
@@ -272,7 +272,7 @@
     border-radius: 18px 8px 20px 10px / 10px 18px 8px 16px;
     background: hsl(var(--lp-foreground));
     color: hsl(var(--lp-primary-foreground));
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Kalam', cursive;
     font-weight: 700;
     font-size: 1.15rem;
     letter-spacing: 0.02em;
@@ -302,7 +302,7 @@
     border-radius: 14px 20px 16px 8px / 8px 16px 20px 14px;
     background: transparent;
     color: hsl(var(--lp-ink-light));
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Kalam', cursive;
     font-weight: 600;
     font-size: 1.1rem;
     padding: 12px 28px;

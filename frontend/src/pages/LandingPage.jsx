@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import heroSketch from '../assets/hero-sketch.png';
+import heroSketch from '../assets/file-bundle-animate.svg';
 import { FileClusterIllustration, EmbeddingIllustration, QueryIllustration } from '../components/landing/SketchIllustration';
 import '../styles/landing.css';
 
@@ -200,7 +200,7 @@ export default function LandingPage() {
                             <circle cx="12" cy="13" r="2.5" />
                             <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
                         </svg>
-                        <span className="font-display text-lg sm:text-xl" style={{ fontFamily: "'Cedarville Cursive', cursive", fontWeight: 700, fontSize: '1.4rem' }}>FileMind</span>
+                        <span className="font-display text-xl sm:text-2xl" style={{ fontFamily: "'Cedarville Cursive', cursive", fontWeight: 700, color: 'hsl(var(--lp-ink))' }}>FileMind</span>
                     </div>
                     <div className="hidden md:flex items-center gap-8 text-sm font-handwritten" style={{ color: 'hsl(220 9% 46%)', fontSize: '1rem' }}>
                         <a href="#how-it-works" className="hover:opacity-70 transition-opacity">How it works</a>
@@ -216,13 +216,12 @@ export default function LandingPage() {
             </nav>
 
             {/* ── Hero ──────────────────────────────────────────────────────── */}
-            <section className="relative pt-24 pb-20 px-6 max-w-5xl mx-auto">
+            <section className="relative pt-20 sm:pt-24 pb-20 px-6 max-w-5xl mx-auto">
                 {/* Background decorations */}
                 <DotField className="top-8 right-0 w-72 h-44 opacity-80 float-anim-slow" />
                 <LooseCircle className="w-52 h-52 -top-6 -left-20 opacity-60" style={{ color: 'hsl(42 80% 55%)' }} />
                 <NodeGraph className="w-36 h-24 bottom-12 left-0 opacity-50 float-anim" />
                 <VectorAxes className="w-32 h-24 bottom-28 right-8" />
-                <Annotation text="vector space" className="top-40 right-4 md:right-56 hidden md:flex" />
 
                 <div className="grid md:grid-cols-2 gap-16 items-center relative z-10">
                     <div>
@@ -233,19 +232,19 @@ export default function LandingPage() {
                         </div>
 
                         {/* Headline */}
-                        <h1 className="font-display mb-8" style={{ fontSize: '4.5rem', lineHeight: 1.05 }}>
-                            Files that{" "}
-                            <span className="sketch-underline italic">understand</span>{" "}
+                        <h1 className="text-4xl sm:text-6xl md:text-8xl font-display leading-[1.0] sm:leading-[0.9] mb-6 sm:mb-8" style={{ color: 'hsl(var(--lp-ink))' }}>
+                            Files that <br className="hidden sm:block" />
+                            <span className="sketch-highlight inline-block pb-2">understand</span><br />
                             themselves.
                         </h1>
 
-                        <p className="text-xl md:text-2xl leading-snug mb-8 max-w-lg" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Cedarville Cursive', cursive" }}>
+                        <p className="text-base sm:text-xl md:text-2xl leading-snug mb-8 max-w-lg" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Cedarville Cursive', cursive" }}>
                             Drop your documents and walk away. FileMind reads every word, maps
                             meaning into vectors, and clusters related files — automatically.
                             Then ask anything in English.
                         </p>
 
-                        <div className="flex flex-wrap gap-4">
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-4">
                             <a id="get-started" href="#how-it-works" className="sketch-button">
                                 See how it works
                                 <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2">
@@ -260,7 +259,6 @@ export default function LandingPage() {
 
                     {/* Hero illustration */}
                     <div className="relative float-anim-slow">
-                        <ArrowLabel label="embeddings" className="-top-12 right-14 hidden md:flex" />
                         <div className="relative" style={{ overflow: 'visible' }}>
                             <img
                                 src={heroSketch}
@@ -268,10 +266,6 @@ export default function LandingPage() {
                                 className="w-full object-contain"
                                 style={{ transform: 'scale(1.4)', transformOrigin: 'center center' }}
                             />
-                        </div>
-                        {/* Floating stat badge */}
-                        <div className="absolute -bottom-5 -left-5 annotation-badge" style={{ padding: '6px 14px', transform: 'rotate(1deg)', boxShadow: '3px 3px 0 hsl(30 10% 75% / 0.2)' }}>
-                            <span style={{ fontWeight: 700, color: 'hsl(220 15% 10%)' }}>6 clusters</span> · 142 files · 0 folders
                         </div>
                         <Brace className="w-7 h-24 -right-7 top-8 hidden lg:block" />
                     </div>
@@ -289,7 +283,7 @@ export default function LandingPage() {
                 <Brace className="w-9 h-36 left-2 top-72 hidden lg:block" />
 
                 <div className="mb-20 relative">
-                    <p className="font-handwritten text-lg uppercase tracking-widest mb-3" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Caveat', cursive" }}>Process</p>
+                    <p className="font-handwritten text-lg uppercase tracking-widest mb-3" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Kalam', cursive" }}>Process</p>
                     <h2 className="font-display text-5xl">Three steps,<br />infinite clarity.</h2>
                     <Annotation text="auto-organized" className="right-0 top-5 hidden lg:flex" />
                 </div>
@@ -338,7 +332,7 @@ export default function LandingPage() {
 
                 <div className="max-w-5xl mx-auto relative z-10">
                     <div className="mb-20 relative">
-                        <p className="font-handwritten text-lg uppercase tracking-widest mb-3" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Caveat', cursive" }}>Features</p>
+                        <p className="font-handwritten text-lg uppercase tracking-widest mb-3" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Kalam', cursive" }}>Features</p>
                         <h2 className="font-display text-5xl max-w-sm">Built for how knowledge actually works.</h2>
                         <VectorAxes className="w-28 h-20 top-0 right-0 hidden md:block" />
                     </div>
@@ -400,13 +394,13 @@ export default function LandingPage() {
                             <path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </Link>
-                    <p className="text-sm mt-6 font-handwritten" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Caveat', cursive", fontSize: '1rem' }}>Free during the development phase ✨</p>
+                    <p className="text-sm mt-6 font-handwritten" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Kalam', cursive", fontSize: '1rem' }}>Free during the development phase ✨</p>
                 </div>
             </section>
 
             {/* Footer */}
             <footer style={{ borderTop: '2px solid hsl(30 10% 85%)' }} className="py-10 px-6">
-                <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Caveat', cursive", fontSize: '1rem' }}>
+                <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Kalam', cursive", fontSize: '1rem' }}>
                     <div className="flex items-center gap-2.5">
                         <svg viewBox="0 0 20 20" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.5">
                             <path d="M4 4h5l2 2h5v10H4V4z" strokeLinecap="round" strokeLinejoin="round" />

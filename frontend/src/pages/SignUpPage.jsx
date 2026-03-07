@@ -109,6 +109,15 @@ export default function SignUpPage() {
 
     return (
         <div className="auth-page">
+            <Link to="/" className="auth-logo-corner">
+                <svg viewBox="0 0 24 24" fill="none" width="32" height="32" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M4 4h6l2 2h6v12H4V4z" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="12" cy="13" r="2.5" />
+                    <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
+                </svg>
+                <span className="auth-logo-text" style={{ fontFamily: "'Cedarville Cursive', cursive" }}>FileMind</span>
+            </Link>
+
             {/* Decorative background */}
             <DotField className="float-anim-slow" style={{ top: 30, left: 0, width: 260, height: 160, opacity: 0.6 }} />
             <LooseCircle className="float-anim" style={{ width: 180, height: 180, top: -30, right: -50, color: 'hsl(42 80% 55%)' }} />
@@ -121,14 +130,6 @@ export default function SignUpPage() {
 
             <div className="auth-card">
                 <div className="auth-header">
-                    <Link to="/" className="auth-logo">
-                        <svg viewBox="0 0 24 24" fill="none" width="28" height="28" stroke="currentColor" strokeWidth="1.8">
-                            <path d="M4 4h6l2 2h6v12H4V4z" strokeLinecap="round" strokeLinejoin="round" />
-                            <circle cx="12" cy="13" r="2.5" />
-                            <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
-                        </svg>
-                        <span className="auth-logo-text">FileMind</span>
-                    </Link>
                     <h1 className="auth-title">Create account</h1>
                     <p className="auth-subtitle">Start organizing your files with AI</p>
                 </div>

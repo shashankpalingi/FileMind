@@ -85,6 +85,15 @@ export default function LoginPage() {
 
     return (
         <div className="auth-page">
+            <Link to="/" className="auth-logo-corner">
+                <svg viewBox="0 0 24 24" fill="none" width="32" height="32" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M4 4h6l2 2h6v12H4V4z" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="12" cy="13" r="2.5" />
+                    <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
+                </svg>
+                <span className="auth-logo-text" style={{ fontFamily: "'Cedarville Cursive', cursive" }}>FileMind</span>
+            </Link>
+
             {/* Decorative background */}
             <DotField className="float-anim-slow" style={{ top: 20, right: 0, width: 280, height: 170, opacity: 0.7 }} />
             <LooseCircle className="float-anim" style={{ width: 200, height: 200, top: -40, left: -60, color: 'hsl(42 80% 55%)' }} />
@@ -97,14 +106,6 @@ export default function LoginPage() {
 
             <div className="auth-card">
                 <div className="auth-header">
-                    <Link to="/" className="auth-logo">
-                        <svg viewBox="0 0 24 24" fill="none" width="28" height="28" stroke="currentColor" strokeWidth="1.8">
-                            <path d="M4 4h6l2 2h6v12H4V4z" strokeLinecap="round" strokeLinejoin="round" />
-                            <circle cx="12" cy="13" r="2.5" />
-                            <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
-                        </svg>
-                        <span className="auth-logo-text">FileMind</span>
-                    </Link>
                     <h1 className="auth-title">Welcome back</h1>
                     <p className="auth-subtitle">Sign in to your FileMind account</p>
                 </div>
