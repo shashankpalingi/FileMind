@@ -1,10 +1,22 @@
-# <img src="frontend/public/favicon.svg" width="32" height="32" style="vertical-align: middle; margin-right: 8px;"> FileMind
+# FileMind: Files that understand themselves 🚀
 
-### **"Files that understand themselves."**
+<div align="center">
+  <img src="project-screenshot.png" alt="FileMind Banner" width="100%">
+  
+  [![React](https://img.shields.io/badge/React-18.x-blue?logo=react)](https://react.dev/)
+  [![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+  [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+  [![Supabase](https://img.shields.io/badge/Supabase-Auth_&_DB-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+  [![Groq](https://img.shields.io/badge/Groq-Llama_3-f55036?logo=groq)](https://groq.com/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-06B6D4?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+  [![Netlify](https://img.shields.io/badge/Netlify-Frontend_Deploy-00AD9F?logo=netlify&logoColor=white)](https://www.netlify.com/)
+  [![Lucide](https://img.shields.io/badge/Lucide-Icons-d7e0ff?logo=lucide)](https://lucide.dev/)
 
-[**Live Demo →**](https://filemind08.netlify.app/)
+  ### [**探索 LIVE DEMO →**](https://filemind08.netlify.app/)
+</div>
 
-![FileMind Dashboard Screenshot](project-screenshot.png)
+---
 
 FileMind is an AI-powered document intelligence system designed to move beyond traditional folder-based storage. It reads every word, maps meaning into high-dimensional vectors, and clusters your related files automatically. 
 
@@ -26,18 +38,10 @@ Whether you need to search semantically across your entire knowledge base or cha
 
 ## 🛠️ Technology Stack
 
-### **Frontend**
-- **Framework**: React.js with Vite
-- **Styling**: Tailwind CSS & Vanilla CSS (Arisanal Sketch theme)
-- **Icons**: Lucide React
-- **Auth**: Supabase Auth
-- **Deployment**: Netlify
-
-### **Backend**
-- **Framework**: FastAPI (Python)
-- **AI Models**: Google GenAI & Groq (for Embeddings and LLM responses)
-- **Extraction**: PyPDF2 / PyMuPDF (PDF intelligence)
-- **Storage**: JSON-based local embeddings storage with Supabase database integration.
+- **Frontend**: React (Vite) + Tailwind CSS + Lucide Icons
+- **Backend**: FastAPI (Python) + Supabase (Auth/DB)
+- **AI/ML**: Groq (Llama 3) + Google GenAI (Embeddings)
+- **Data**: PyPDF2 / PyMuPDF (PDF Processing) + JSON Vector Store
 
 ---
 
@@ -50,13 +54,11 @@ FileMind/
 │   │   ├── components/ # Branded UI and Dashboard components
 │   │   ├── context/    # Auth and Theme state management
 │   │   ├── pages/      # Landing, Login, Sign Up, Dashboard
-│   │   └── styles/     # Global and component-specific CSS
 │   └── public/         # Branded assets and favicon
 ├── backend/            # FastAPI (Python) server
 │   ├── ai_engine.py    # LLM and RAG logic
 │   ├── cluster_engine.py # Embedding and clustering algorithms
 │   ├── main.py         # API Endpoints
-│   └── storage.py      # File and metadata handling
 └── README.md
 ```
 
@@ -76,7 +78,6 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # Or `venv\Scripts\activate` on Windows
 pip install -r requirements.txt
-# Configure your .env with GOOGLE_API_KEY, GROQ_API_KEY, and SUPABASE_URL
 python main.py
 ```
 
@@ -84,18 +85,8 @@ python main.py
 ```bash
 cd frontend
 npm install
-# Configure your .env with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 npm run dev
 ```
-
----
-
-## 🎨 Design Philosophy
-
-FileMind uses a unique **"Sketch & Ink"** aesthetic. The design relies on:
-- **Handwritten Fonts**: Cedarville Cursive and Kalam for a natural, organic feel.
-- **Micro-animations**: Subtle floating and pulsing effects to make the interface feel "alive."
-- **Visual Clarity**: Using SVGs and vector axes to represent the "geometry of meaning" behind your data.
 
 ---
 
