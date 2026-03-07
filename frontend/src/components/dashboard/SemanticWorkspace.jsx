@@ -49,12 +49,16 @@ const SemanticWorkspace = () => {
   const [dataLoading, setDataLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Getting things ready...');
 
   const loading = dataLoading || uploadLoading || deleteLoading;
 
   // Fetch files list — only update state if data changed
   const fetchFiles = useCallback(async (showLoader = false) => {
-    if (showLoader) setDataLoading(true);
+    if (showLoader) {
+      setDataLoading(true);
+      setLoadingMessage('Fetching your knowledge base...');
+    }
     try {
       const { data } = await api.get('/files');
       const json = JSON.stringify(data);
@@ -139,7 +143,10 @@ const SemanticWorkspace = () => {
     };
   }, [deleteLoading, fetchStatus, fetchFiles]);
 
-  const handleUploadStart = () => setUploadLoading(true);
+  const handleUploadStart = () => {
+    setLoadingMessage('Analyzing documents...');
+    setUploadLoading(true);
+  };
   const handleUploadEnd = () => {
     // Keep uploadLoading = true — don't clear it here.
     // The rapid poll above will clear it once backend confirms processing is done.
@@ -149,14 +156,17 @@ const SemanticWorkspace = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
-  const handleDeleteStart = () => setDeleteLoading(true);
+  const handleDeleteStart = () => {
+    setLoadingMessage('Removing files...');
+    setDeleteLoading(true);
+  };
 
 
 
 
   return (
     <div className="semantic-workspace">
-      {loading && <Loader />}
+      {loading && <Loader message={loadingMessage} />}
       {/* Top Navigation Bar */}
       <nav className="top-nav">
         <div className="nav-content">

@@ -4,7 +4,8 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(21, 25, 30, 0.7);
+    backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -19,10 +20,12 @@
 }
 
 .loader-message {
-    color: #95a5a6;
-    font-size: 1.1rem;
+    color: #ffffff;
+    font-size: 1.25rem;
+    font-family: 'Kalam', cursive;
     letter-spacing: 0.05em;
     animation: pulse 1.5s ease-in-out infinite;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes pulse {
@@ -45,8 +48,8 @@
 
 .content-circle {
     position: relative;
-    width: 450px;
-    height: 450px;
+    width: 320px;
+    height: 320px;
     overflow: hidden;
     background-color: #212f3c;
     border-radius: 50%;
@@ -54,25 +57,26 @@
     -moz-backface-visibility: hidden;
     -webkit-transform: translate3d(0, 0, 0);
     -moz-transform: translate3d(0, 0, 0);
+    border: 3px solid rgba(255, 255, 255, 0.1);
 }
 
 .content-circle:before {
     content: "";
     position: absolute;
-    width: 450px;
-    height: 200px;
-    top: 300px;
+    width: 320px;
+    height: 150px;
+    top: 220px;
     border-radius: 50% 50% 0 0;
     background-color: #000;
 }
 
 .house {
     position: absolute;
-    width: 120px;
-    height: 150px;
+    width: 80px;
+    height: 110px;
     background-color: black;
-    left: 180px;
-    top: 160px;
+    left: 120px;
+    top: 120px;
     transform: rotate(5deg);
     z-index: 2;
 }
@@ -344,14 +348,14 @@
 
 .moon {
     position: absolute;
-    width: 200px;
-    height: 200px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
     background-color: #95a5a6;
     z-index: 1;
-    left: 80px;
+    left: 60px;
     top: 40px;
-    box-shadow: inset 7px -7px 0 rgba(0, 0, 0, 0.09);
+    box-shadow: inset 5px -5px 0 rgba(0, 0, 0, 0.09);
 }
 
 .moon:before,
