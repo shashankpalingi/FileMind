@@ -365,3 +365,17 @@
         height: 500px;
     }
 }
+
+@media (max-width: 768px) {
+    .chat-assistant {
+        height: 600px;
+    }
+
+    .chat-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .chat-input-form {
+        padding: 0.75rem 1rem;
+    }
+}

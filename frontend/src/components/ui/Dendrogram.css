@@ -4,6 +4,7 @@
     border-radius: 12px;
     overflow: hidden;
     box-shadow: var(--shadow-md);
+    max-width: 100%;
 }
 
 .dendrogram-header {
@@ -37,6 +38,7 @@
     overflow-x: auto;
     display: flex;
     justify-content: center;
+    max-width: 100%;
 }
 
 .dendrogram-container::-webkit-scrollbar {

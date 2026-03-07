@@ -37,7 +37,8 @@
   display: flex;
   align-items: center;
   width: 280px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .nav-brand {
@@ -76,7 +77,8 @@
   align-items: center;
   gap: 0.5rem;
   width: 360px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
   justify-content: flex-end;
 }
 
@@ -325,6 +327,22 @@
   .right-panel {
     order: 3;
   }
+
+  .nav-left {
+    width: auto;
+    flex-basis: auto;
+  }
+
+  .nav-right {
+    width: auto;
+    flex-basis: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .brand-name {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) {
@@ -334,22 +352,20 @@
   }
 
   .top-nav {
-    padding: 0 1rem;
+    padding: 0 0.75rem;
+  }
+
+  .nav-content {
+    gap: 0.5rem;
+    padding: 0 0.5rem;
   }
 
   .workspace-title {
     font-size: 1.25rem;
   }
 
-  .brand-name {
+  .nav-right .nav-icon-btn {
     display: none;
-  }
-
-  .nav-divider {
-    display: none;
-  }
-
-  .nav-breadcrumb {
-    display: none;
+    /* Hide toggle theme behind avatar if necessary or compact it */
   }
 }

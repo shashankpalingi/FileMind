@@ -290,3 +290,15 @@
     background: rgba(239, 68, 68, 0.15);
     border-color: rgba(239, 68, 68, 0.4);
 }
+
+@media (max-width: 1200px) {
+    .sidebar {
+        height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        height: 350px;
+    }
+}
