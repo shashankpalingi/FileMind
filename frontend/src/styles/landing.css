@@ -375,30 +375,3 @@
         linear-gradient(90deg, hsl(var(--lp-sketch-line) / 0.08) 1px, transparent 1px);
     background-size: 24px 24px;
 }
-
-/* ── Hero Image Responsive Scaling ────────────────────────── */
-
-.landing-page .sketch-img-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.landing-page .hero-sketch-img {
-    transform: scale(1.4);
-    transform-origin: center center;
-    transition: transform 0.3s ease;
-}
-
-@media (max-width: 1024px) {
-    .landing-page .hero-sketch-img {
-        transform: scale(1.2);
-    }
-}
-
-@media (max-width: 768px) {
-    .landing-page .hero-sketch-img {
-        transform: scale(1);
-        margin-top: 2rem;
-    }
-}

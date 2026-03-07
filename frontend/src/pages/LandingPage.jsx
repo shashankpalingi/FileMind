@@ -258,11 +258,12 @@ export default function LandingPage() {
                     {/* Hero illustration */}
                     <div className="relative float-anim-slow">
                         <ArrowLabel label="embeddings" className="-top-12 right-14 hidden md:flex" />
-                        <div className="relative sketch-img-container" style={{ overflow: 'visible' }}>
+                        <div className="relative" style={{ overflow: 'visible' }}>
                             <img
                                 src={heroSketch}
                                 alt="Files clustering by semantic meaning"
-                                className="w-full object-contain hero-sketch-img"
+                                className="w-full object-contain"
+                                style={{ transform: 'scale(1.4)', transformOrigin: 'center center' }}
                             />
                         </div>
                         {/* Floating stat badge */}
