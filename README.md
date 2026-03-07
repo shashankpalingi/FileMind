@@ -95,4 +95,3 @@ npm run dev
 ---
 
 ### Developed by **Shashank Palingi**
-*3rd Year Project — 2026*
