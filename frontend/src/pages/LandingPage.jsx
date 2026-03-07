@@ -195,12 +195,12 @@ export default function LandingPage() {
             <nav className="sketch-nav" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50 }}>
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 md:gap-2.5 shrink-0">
-                        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" stroke="currentColor" strokeWidth="1.8">
+                        <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 sm:w-8 sm:h-8 shrink-0" stroke="currentColor" strokeWidth="1.8">
                             <path d="M4 4h6l2 2h6v12H4V4z" strokeLinecap="round" strokeLinejoin="round" />
                             <circle cx="12" cy="13" r="2.5" />
                             <path d="M9.5 16 L6 20M14.5 16 L18 20" strokeLinecap="round" opacity="0.4" />
                         </svg>
-                        <span className="font-display text-lg sm:text-xl" style={{ fontFamily: "'Caveat', cursive", fontWeight: 700 }}>FileMind</span>
+                        <span className="font-display text-lg sm:text-xl" style={{ fontFamily: "'Cedarville Cursive', cursive", fontWeight: 700, fontSize: '1.4rem' }}>FileMind</span>
                     </div>
                     <div className="hidden md:flex items-center gap-8 text-sm font-handwritten" style={{ color: 'hsl(220 9% 46%)', fontSize: '1rem' }}>
                         <a href="#how-it-works" className="hover:opacity-70 transition-opacity">How it works</a>
@@ -239,7 +239,7 @@ export default function LandingPage() {
                             themselves.
                         </h1>
 
-                        <p className="text-lg leading-relaxed mb-12 max-w-md" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Architects Daughter', sans-serif" }}>
+                        <p className="text-xl md:text-2xl leading-snug mb-8 max-w-lg" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Cedarville Cursive', cursive" }}>
                             Drop your documents and walk away. FileMind reads every word, maps
                             meaning into vectors, and clusters related files — automatically.
                             Then ask anything in English.
@@ -308,7 +308,7 @@ export default function LandingPage() {
                                 <div className="relative">
                                     <span className="step-number block mb-5">{step.number}</span>
                                     <h3 className="font-display text-3xl mb-4">{step.title}</h3>
-                                    <p className="leading-relaxed text-lg" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Architects Daughter', sans-serif" }}>{step.description}</p>
+                                    <p className="leading-relaxed text-xl" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Cedarville Cursive', cursive" }}>{step.description}</p>
                                     <Annotation text={step.annotation} className="-right-2 top-14 hidden lg:flex" />
                                 </div>
                                 <div className="sketch-box p-6 h-48 flex items-center justify-center relative sketch-grid" style={{ color: 'hsl(220 15% 10% / 0.5)' }}>
@@ -349,7 +349,7 @@ export default function LandingPage() {
                                     {f.icon}
                                 </div>
                                 <h4 className="font-display text-xl font-semibold mb-3">{f.title}</h4>
-                                <p className="text-sm leading-relaxed" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Architects Daughter', sans-serif" }}>{f.description}</p>
+                                <p className="text-lg leading-relaxed" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Cedarville Cursive', cursive" }}>{f.description}</p>
                                 {/* Mini node decoration on some cards */}
                                 {i % 3 === 0 && (
                                     <svg viewBox="0 0 40 30" fill="none" className="absolute bottom-3 right-3 w-10 h-7 opacity-8" aria-hidden="true" style={{ opacity: 0.08 }}>
@@ -391,7 +391,7 @@ export default function LandingPage() {
                         Stop filing.<br />Start{" "}
                         <span className="sketch-underline italic">finding.</span>
                     </h2>
-                    <p className="leading-relaxed mb-12 max-w-md mx-auto text-lg" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Architects Daughter', sans-serif" }}>
+                    <p className="leading-relaxed mb-12 max-w-lg mx-auto text-xl md:text-2xl" style={{ color: 'hsl(220 9% 46%)', fontFamily: "'Cedarville Cursive', cursive" }}>
                         FileMind is in active development. Get early access and experience the future of semantic file organization.
                     </p>
                     <Link to="/dashboard" className="sketch-button" style={{ fontSize: '1.2rem', padding: '14px 36px' }}>

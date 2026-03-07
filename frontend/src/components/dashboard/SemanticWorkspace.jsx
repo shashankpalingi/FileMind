@@ -163,9 +163,9 @@ const SemanticWorkspace = () => {
           <div className="nav-left">
             <div className="nav-brand">
               <div className="brand-icon">
-                <FolderSearch size={22} />
+                <FolderSearch size={28} />
               </div>
-              <span className="brand-name">FileMind</span>
+              <span className="brand-name" style={{ fontFamily: "'Cedarville Cursive', cursive", fontSize: '1.4rem', fontWeight: 700, marginLeft: '0.125rem' }}>FileMind</span>
             </div>
           </div>
 
