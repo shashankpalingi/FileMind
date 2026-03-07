@@ -13,7 +13,11 @@
   [![Netlify](https://img.shields.io/badge/Netlify-Frontend_Deploy-00AD9F?logo=netlify&logoColor=white)](https://www.netlify.com/)
   [![Lucide](https://img.shields.io/badge/Lucide-Icons-d7e0ff?logo=lucide)](https://lucide.dev/)
 
-  ### [**探索 LIVE DEMO →**](https://filemind08.netlify.app/)
+  <div align="center" style="margin: 30px 0;">
+    <a href="https://filemind08.netlify.app/" target="_blank" rel="noopener noreferrer">
+      <img src="https://img.shields.io/badge/EXPLORE_LIVE_DEMO-%234F46E5.svg?style=for-the-badge&logo=react&logoColor=white&labelColor=4F46E5&color=635BFF" alt="Explore Live Demo" width="300" height="50"/>
+    </a>
+  </div>
 </div>
 
 ---
