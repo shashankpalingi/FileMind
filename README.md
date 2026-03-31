@@ -22,7 +22,7 @@
 
 ---
 
-FileMind is an AI-powered document intelligence system designed to move beyond traditional folder-based storage. It reads every word, maps meaning into high-dimensional vectors, and clusters your related files automatically. 
+filemind is an AI-powered document intelligence system designed to move beyond traditional folder-based storage. It reads every word, maps meaning into high-dimensional vectors, and clusters your related files automatically. 
 
 Whether you need to search semantically across your entire knowledge base or chat with your documents using RAG (Retrieval-Augmented Generation), FileMind provides a modern, visual, and intelligent workspace.
 
